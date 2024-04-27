@@ -15,7 +15,7 @@ public class AppData
 
     public void ResetInitialChatTaskId(IDbConnection db)
     {
-        var maxId = db.Scalar<long>($"SELECT MAX(Id) FROM {nameof(OpenAiChatTask)}");
+        var maxId = db.Scalar<long>($"SELECT MAX(Id) FROM {nameof(TaskSummary)}");
         SetInitialChatTaskId(maxId);
     }
 

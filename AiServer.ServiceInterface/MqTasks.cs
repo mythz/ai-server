@@ -7,7 +7,7 @@ namespace AiServer.ServiceInterface;
 
 [Tag(Tag.Tasks)]
 [Restrict(RequestAttributes.MessageQueue), ExcludeMetadata]
-public class AppDbWrites : IGet, IReturn<EmptyResponse>
+public class AppDbWrites : IReturn<EmptyResponse>
 {
     [Command<CreateOpenAiChatTaskCommand>]
     public OpenAiChatTask? CreateOpenAiChatTask { get; set; }
@@ -17,4 +17,18 @@ public class AppDbWrites : IGet, IReturn<EmptyResponse>
     
     [Command<RequeueIncompleteTasksCommand>]
     public RequeueIncompleteTasks? RequeueIncompleteTasks { get; set; }
+    
+    [Command<CompleteOpenAiChatCommand>]
+    public CompleteOpenAiChat? CompleteOpenAiChat { get; set; }
+    
+    [Command<CompleteNotificationCommand>]
+    public CompleteNotification? CompleteNotification { get; set; }
+}
+
+[Tag(Tag.Tasks)]
+[Restrict(RequestAttributes.MessageQueue), ExcludeMetadata]
+public class NotificationTasks : IReturn<EmptyResponse>
+{
+    [Command<NotificationRequestCommand>]
+    public NotificationRequest? NotificationRequest { get; set; }
 }

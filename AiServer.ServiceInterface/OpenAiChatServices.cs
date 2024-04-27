@@ -103,6 +103,8 @@ public class OpenAiChatServices(
                         return new FetchOpenAiChatRequestsResponse {
                             Results = results.Select(x => new OpenAiChatRequest {
                                 Id = x.Id,
+                                Model = x.Model,
+                                Provider = x.Provider,
                                 Request = x.Request,
                             }).ToArray()
                         };
@@ -124,6 +126,31 @@ public class OpenAiChatServices(
                 : null,
         });
         
+        return new EmptyResponse();
+    }
+
+    public async Task<object> Any(CompleteOpenAiChat request)
+    {
+        mq.Publish(new AppDbWrites {
+            CompleteOpenAiChat = request,
+        });
+
+        var task = await Db.SingleByIdAsync<OpenAiChatTask>(request.Id);
+        if (task?.ReplyTo != null)
+        {
+            var json = request.Response.ToJson();
+            mq.Publish(new NotificationTasks {
+                NotificationRequest = new() {
+                    Url = task.ReplyTo,
+                    ContentType = MimeTypes.Json,
+                    Body = json,
+                    CompleteNotification = new() {
+                        Type = TaskType.OpenAiChat,
+                        Id = task.Id,
+                    },
+                },
+            });
+        }
         return new EmptyResponse();
     }
 }

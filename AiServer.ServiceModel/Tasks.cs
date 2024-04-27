@@ -6,8 +6,7 @@ namespace AiServer.ServiceModel;
 
 public class TaskSummary
 {
-    [AutoIncrement]
-    public int Id { get; set; }
+    public long Id { get; set; }
 
     /// <summary>
     /// The type of Task
@@ -31,6 +30,16 @@ public class TaskSummary
     public string RefId { get; set; }
     
     /// <summary>
+    /// Number of tokens in the prompt.
+    /// </summary>
+    public int PromptTokens { get; set; }
+    
+    /// <summary>
+    /// Number of tokens in the generated completion.
+    /// </summary>
+    public int CompletionTokens { get; set; }
+
+    /// <summary>
     /// The duration reported by the worker to complete the task
     /// </summary>
     public int DurationMs { get; set; }
@@ -44,12 +53,6 @@ public class TaskSummary
     /// The Primary Key for the Task in the Month Db
     /// </summary>
     public int DbId { get; set; }
-}
-
-[EnumAsInt]
-public enum TaskType
-{
-    OpenAiChat = 1,
 }
 
 public abstract class TaskBase : IHasLongId
@@ -133,6 +136,11 @@ public abstract class TaskBase : IHasLongId
     public virtual int Retries { get; set; }
 
     /// <summary>
+    /// When the callback for the Task completed
+    /// </summary>
+    public virtual DateTime? NotificationDate { get; set; }
+
+    /// <summary>
     /// The Exception Type or other Error Code for why the Task failed 
     /// </summary>
     public virtual string? ErrorCode { get; set; }
@@ -142,3 +150,10 @@ public abstract class TaskBase : IHasLongId
     /// </summary>
     public virtual ResponseStatus? Error { get; set; }
 }
+
+[EnumAsInt]
+public enum TaskType
+{
+    OpenAiChat = 1,
+}
+

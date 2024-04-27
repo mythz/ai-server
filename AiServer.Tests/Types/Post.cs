@@ -1,7 +1,26 @@
-﻿using ServiceStack.DataAnnotations;
+﻿using ServiceStack;
+using ServiceStack.DataAnnotations;
 
 namespace AiServer.Tests.Types;
 
+[ValidateIsAuthenticated]
+public class GetQuestion : IGet, IReturn<GetQuestionResponse>
+{
+    public int Id { get; set; }
+}
+public class GetQuestionResponse
+{
+    public required Post Result { get; set; }
+    public ResponseStatus? ResponseStatus { get; set; }
+}
+[ValidateIsAuthenticated]
+public class GetQuestionBody : IGet, IReturn<string>
+{
+    public int Id { get; set; }
+}
+
+[Description("StackOverflow Question")]
+[Notes("A StackOverflow Question Post")]
 public class Post
 {
     public int Id { get; set; }

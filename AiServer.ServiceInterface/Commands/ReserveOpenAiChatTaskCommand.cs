@@ -26,7 +26,7 @@ public class ReserveOpenAiChatTaskCommand(ILogger<ReserveOpenAiChatTaskCommand> 
           WHERE Id IN
               (SELECT Id
                 FROM OpenAiChatTask
-                WHERE RequestId is null AND StartedDate is null
+                WHERE RequestId IS NULL AND StartedDate IS NULL AND CompletedDate IS NULL
                 AND Model IN (@Models)
                 AND (Provider IS NULL OR Provider = @Provider)
                 ORDER BY Id
