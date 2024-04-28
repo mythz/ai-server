@@ -1,4 +1,4 @@
-﻿using AiServer.ServiceInterface.Commands;
+﻿using AiServer.ServiceInterface.AppDb;
 using AiServer.ServiceModel;
 using Microsoft.AspNetCore.Http;
 using ServiceStack;

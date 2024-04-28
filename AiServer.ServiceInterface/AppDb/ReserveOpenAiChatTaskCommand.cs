@@ -3,7 +3,7 @@ using Microsoft.Extensions.Logging;
 using ServiceStack.Messaging;
 using ServiceStack.OrmLite;
 
-namespace AiServer.ServiceInterface.Commands;
+namespace AiServer.ServiceInterface.AppDb;
 
 public class ReserveOpenAiChatTask
 {
@@ -21,20 +21,7 @@ public class ReserveOpenAiChatTaskCommand(ILogger<ReserveOpenAiChatTaskCommand> 
     
     public async Task ExecuteAsync(ReserveOpenAiChatTask request)
     {
-        var sql = """
-          UPDATE OpenAiChatTask SET RequestId = @RequestId, StartedDate = @StartedDate
-          WHERE Id IN
-              (SELECT Id
-                FROM OpenAiChatTask
-                WHERE RequestId IS NULL AND StartedDate IS NULL AND CompletedDate IS NULL
-                AND Model IN (@Models)
-                AND (Provider IS NULL OR Provider = @Provider)
-                ORDER BY Id
-                LIMIT @Take)
-          """;
-
-        var rowsUpdated = await db.ExecuteSqlAsync(sql,
-            new { request.RequestId, StartedDate = DateTime.UtcNow, request.Models, request.Provider, request.Take });
+        var rowsUpdated = await db.ReserveNextTasksAsync(request.RequestId, request.Models, request.Provider, request.Take);
         if (rowsUpdated == 0)
         {
             log.LogWarning("Could not find {Take} available tasks for {Model} with {Provider} for Request {RequestId}", 
@@ -48,5 +35,29 @@ public class ReserveOpenAiChatTaskCommand(ILogger<ReserveOpenAiChatTaskCommand> 
                 RequeueIncompleteTasks = new RequeueIncompleteTasks(),
             });
         }
+    }
+}
+
+public static class ReserveOpenAiChatTaskCommandExtensions
+{
+    public static async Task<int> ReserveNextTasksAsync(this IDbConnection db, 
+        string requestId, string[] models, string? provider=null, int take=1)
+    {
+        var startedDate = DateTime.UtcNow;
+        var sql = """
+                  UPDATE OpenAiChatTask SET RequestId = @requestId, StartedDate = @startedDate
+                  WHERE Id IN
+                      (SELECT Id
+                        FROM OpenAiChatTask
+                        WHERE RequestId IS NULL AND StartedDate IS NULL AND CompletedDate IS NULL
+                        AND Model IN (@models)
+                        AND (Provider IS NULL OR Provider = @provider)
+                        ORDER BY Id
+                        LIMIT @take)
+                  """;
+
+        var rowsUpdated = await db.ExecuteSqlAsync(sql,
+            new { requestId, startedDate, models, provider, take });
+        return rowsUpdated;
     }
 }

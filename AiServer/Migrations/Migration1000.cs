@@ -167,7 +167,6 @@ public class Migration1000 : MigrationBase
         public virtual ResponseStatus? Error { get; set; }
     }
 
-
     public override void Up()
     {
         Db.CreateTable<OpenAiChatTask>();

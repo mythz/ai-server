@@ -1,4 +1,5 @@
-﻿using ServiceStack;
+﻿using AiServer.ServiceModel;
+using ServiceStack;
 
 namespace AiServer.Tests;
 
@@ -33,5 +34,71 @@ public static class TestUtils
     {
         ["phi3"] = "1d8b07ba-b1de-420c-8b7c-7e767fab9dbc",
         ["llama3:8b"] = "059fceb9-9e5e-4603-93f7-d77972b8eb2f",
+        ["codellama"] = "32576297-6242-4ceb-84eb-d8e76da30a37",
+        ["mistral"] = "4f96e54c-54e8-48f1-aad3-bbb7e7805469",
+        ["mixtral"] = "ed334220-8614-4846-81e8-e2e94a9104ac",
+        ["gemma"] = "d56768fb-bfcc-4a86-bb48-b428266d3e7c",
+        ["gemini-pro"] = "e972c92b-68a9-4374-a2c4-1fb819f19cb3",
+    };
+    
+    public static ApiType OpenAiApiType = new()
+    {
+        Id = 1,
+        Name = "ollama",
+        TaskPaths = new() {
+            [TaskType.OpenAiChat] = "/v1/chat/completions",
+        },
+    };
+    public static ApiType GoogleApiType = new()
+    {
+        Id = 5,
+        Name = "google",
+        Website = "https://cloud.google.com",
+        ApiBaseUrl = "https://generativelanguage.googleapis.com",
+        OpenAiProvider = "GoogleOpenAiProvider",
+        TaskPaths = new() {
+            [TaskType.OpenAiChat] = "/v1beta/models/gemini-pro:generateContent",
+        },
+        ApiModels = new()
+        {
+            ["gemini-pro"] = "gemini-pro",
+            ["gemini-pro-1.5"] = "gemini-pro-1.5",
+            ["gemini-pro-vision"] = "gemini-pro-vision",
+        }
+    };
+    
+    public static ApiProvider MacbookApiProvider = new()
+    {
+        Name = "macbook",
+        ApiTypeId = 1,
+        ApiBaseUrl = "http://macbook:11434",
+        Concurrency = 1,
+        Priority = 2,
+        Enabled = true,
+        Models = [
+            new() { Model = "llama3:8b", },
+            new() { Model = "phi3", },
+            new() { Model = "gemma", },
+            new() { Model = "codellama", },
+            new() { Model = "mistral", }
+        ],
+        ApiType = OpenAiApiType
+    };
+
+    public static ApiProvider GoogleApiProvider = new()
+    {
+        Name = "google",
+        ApiTypeId = 5,
+        ApiKey = Environment.GetEnvironmentVariable("GOOGLE_API_KEY"),
+        Concurrency = 1,
+        Priority = 0,
+        Enabled = true,
+        Models =
+        [
+            new() { Model = "gemini-pro", },
+            new() { Model = "gemini-pro-1.5", },
+            new() { Model = "gemini-pro-vision", },
+        ],
+        ApiType = GoogleApiType
     };
 }

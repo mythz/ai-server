@@ -1,9 +1,10 @@
 using System.Net.Http.Headers;
+using AiServer.ServiceInterface.AppDb;
 using Microsoft.Extensions.Logging;
 using ServiceStack;
 using ServiceStack.Messaging;
 
-namespace AiServer.ServiceInterface.Commands;
+namespace AiServer.ServiceInterface.Notification;
 
 public class NotificationRequest
 {

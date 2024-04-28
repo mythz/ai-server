@@ -2,7 +2,7 @@
 using AiServer.ServiceModel;
 using ServiceStack.OrmLite;
 
-namespace AiServer.ServiceInterface.Commands;
+namespace AiServer.ServiceInterface.AppDb;
 
 public class CompleteOpenAiChatCommand(IDbConnection db) : IAsyncCommand<CompleteOpenAiChat>
 {

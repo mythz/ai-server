@@ -1,7 +1,7 @@
 using System.Data;
 using ServiceStack.OrmLite;
 
-namespace AiServer.ServiceInterface.Commands;
+namespace AiServer.ServiceInterface.AppDb;
 
 public class RequeueIncompleteTasks {}
 

@@ -255,4 +255,26 @@ public class OpenAiChatTaskTests
         
         completeApi.ThrowIfError();
     }
+
+    [Test]
+    public async Task Can_execute_answers_from_multiple_models()
+    {
+        var models = TestUtils.ModerUserIds.Keys.ToList();
+
+        var testFolder = new DirectoryInfo(Path.Combine(TestUtils.GetQuestionsDir(), "100/000"));
+        
+        var postId = 100000001;
+        
+        var questionFiles = testFolder.GetMatchingFiles("???.json").ToList();
+        foreach (var model in models)
+        {
+            var replyTo = TestUtils.PvqBaseUrl.CombineWith("api/CreateAnswerCallback")
+                .AddQueryParams(new() {
+                    ["PostId"] = postId,
+                    ["UserId"] = TestUtils.ModerUserIds[model]
+                });
+            
+            await CreateQuestionTasks(questionFiles, model:model, replyTo:replyTo);
+        }
+    }
 }

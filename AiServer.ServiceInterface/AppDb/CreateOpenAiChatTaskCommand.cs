@@ -1,11 +1,13 @@
 ﻿using System.Data;
 using AiServer.ServiceModel;
 using Microsoft.Extensions.Logging;
+using ServiceStack.Messaging;
 using ServiceStack.OrmLite;
 
-namespace AiServer.ServiceInterface.Commands;
+namespace AiServer.ServiceInterface.AppDb;
 
-public class CreateOpenAiChatTaskCommand(ILogger<CreateOpenAiChatTaskCommand> log, IDbConnection db) : IAsyncCommand<OpenAiChatTask>
+public class CreateOpenAiChatTaskCommand(ILogger<CreateOpenAiChatTaskCommand> log, IDbConnection db, IMessageProducer mq) 
+    : IAsyncCommand<OpenAiChatTask>
 {
     public async Task ExecuteAsync(OpenAiChatTask request)
     {
@@ -23,5 +25,12 @@ public class CreateOpenAiChatTaskCommand(ILogger<CreateOpenAiChatTaskCommand> lo
             RefId = request.RefId,
         });
         dbTrans.Commit();
+
+        if (!DelegateOpenAiChatTasksCommand.Running)
+        {
+            mq.Publish(new AppDbWrites {
+                DelegateOpenAiChatTasks = new()
+            });
+        }
     }
 }
