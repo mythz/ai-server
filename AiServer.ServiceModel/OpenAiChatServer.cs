@@ -100,3 +100,20 @@ public class QueryFailedChatTasks : QueryDb<OpenAiChatFailed>
 {
     public string? Db { get; set; }
 }
+
+[ValidateApiKey]
+public class GetActiveProviders : IGet, IReturn<GetActiveProvidersResponse> {}
+
+public class GetActiveProvidersResponse
+{
+    public ApiProvider[] Results { get; set; }
+    public ResponseStatus? ResponseStatus { get; set; }
+}
+
+[ValidateApiKey]
+public class ChatApiProvider : IPost, IReturn<OpenAiChatResponse>
+{
+    public string Provider { get; set; }
+    public string Model { get; set; }
+    public OpenAiChat Request { get; set; }
+}

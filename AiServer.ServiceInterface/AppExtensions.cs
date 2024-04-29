@@ -33,9 +33,9 @@ public static class AppExtensions
         return new EmptyResponse();
     }
 
-    public static string? GetBody(this OpenAiChatResponse response)
+    public static string? GetBody(this OpenAiChatResponse? response)
     {
-        return response.Choices?.FirstOrDefault()?.Message?.Content;
+        return response?.Choices?.FirstOrDefault()?.Message?.Content;
     }
     
     public static string GetTableName(TaskType taskType) => taskType switch  {

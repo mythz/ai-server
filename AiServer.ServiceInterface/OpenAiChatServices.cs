@@ -153,4 +153,19 @@ public class OpenAiChatServices(
         }
         return new EmptyResponse();
     }
+    
+    public object Any(GetActiveProviders request) => new GetActiveProvidersResponse
+    {
+        Results = appData.ActiveProviders
+    }; 
+
+    public async Task<object> Any(ChatApiProvider request)
+    {
+        var apiProvider = appData.ApiProviders.FirstOrDefault(x => x.Name == request.Provider)
+            ?? throw HttpError.NotFound("ApiProvider not found");
+        
+        var chatProvider = apiProvider.GetOpenAiProvider();
+        var response = await chatProvider.ChatAsync(apiProvider, request.Request);
+        return response.Response;
+    }
 }
