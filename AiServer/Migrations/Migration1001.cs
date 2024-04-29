@@ -41,6 +41,11 @@ public class Migration1001 : MigrationBase
         public string? ApiBaseUrl { get; set; }
         
         /// <summary>
+        /// Url to check if the API is online
+        /// </summary>
+        public string? HeartbeatUrl { get; set; }
+        
+        /// <summary>
         /// Override API Paths for different AI Tasks
         /// </summary>
         public Dictionary<TaskType, string>? TaskPaths { get; set; }
@@ -59,6 +64,11 @@ public class Migration1001 : MigrationBase
         /// Whether the Provider is enabled
         /// </summary>
         public bool Enabled { get; set; }
+    
+        /// <summary>
+        /// When the Provider went offline
+        /// </summary>
+        public DateTime? OfflineDate { get; set; }
         
         /// <summary>
         /// When the Provider was created
@@ -117,6 +127,11 @@ public class Migration1001 : MigrationBase
         public string ApiBaseUrl { get; set; }
         
         /// <summary>
+        /// Url to check if the API is online
+        /// </summary>
+        public string? HeartbeatUrl { get; set; }
+        
+        /// <summary>
         /// Uses a Custom IOpenAiProvider
         /// </summary>
         public string? OpenAiProvider { get; set; }
@@ -142,12 +157,14 @@ public class Migration1001 : MigrationBase
         
         [Index(Unique = true)]
         public string Name { get; set; }
-
-        public string? Website { get; set; }
     
         public string? Parameters { get; set; }
 
         public int? ContextSize { get; set; }
+
+        public string? Website { get; set; }
+
+        public string? Developer { get; set; }
     
         public string? Notes { get; set; }
     }

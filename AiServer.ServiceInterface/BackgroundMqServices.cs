@@ -16,12 +16,12 @@ public class AppDbWrites : IReturn<EmptyResponse>
     
     [Command<ReserveOpenAiChatTaskCommand>]
     public ReserveOpenAiChatTask? ReserveOpenAiChatTask { get; set; }
-
-    [Command<DelegateOpenAiChatTasksCommand>]
-    public DelegateOpenAiChatTasks? DelegateOpenAiChatTasks{ get; set; }
     
     [Command<RequeueIncompleteTasksCommand>]
     public RequeueIncompleteTasks? RequeueIncompleteTasks { get; set; }
+
+    [Command<DelegateOpenAiChatTasksCommand>]
+    public DelegateOpenAiChatTasks? DelegateOpenAiChatTasks{ get; set; }
     
     [Command<CompleteOpenAiChatCommand>]
     public CompleteOpenAiChat? CompleteOpenAiChat { get; set; }

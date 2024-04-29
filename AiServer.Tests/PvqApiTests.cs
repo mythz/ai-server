@@ -12,32 +12,54 @@ public class PvqApiTests
         {
             Name = "macbook",
             ApiTypeId = 1,
-            ApiBaseUrl = "http://macbook:11434",
+            ApiBaseUrl = "https://macbook.pvq.app",
             Concurrency = 1,
             Priority = 4,
             Enabled = true,
             Models =
             [
-                new() { Model = "llama3:8b", },
                 new() { Model = "phi3", },
+                new() { Model = "mistral", },
+                new() { Model = "llama3:8b", },
                 new() { Model = "gemma", },
                 new() { Model = "codellama", },
-                new() { Model = "mistral", },
             ]
         },
         new CreateApiProvider
         {
             Name = "supermicro",
             ApiTypeId = 1,
-            ApiBaseUrl = "http://supermicro:11434",
+            ApiBaseUrl = "https://supermicro.pvq.app",
             Concurrency = 1,
             Priority = 0,
-            Enabled = false,
+            Enabled = true,
             Models = [
-                new() { Model = "llama3:8b", },
+                new() { Model = "phi3", },
                 new() { Model = "mistral", },
-                new() { Model = "mixtral", },
+                new() { Model = "llama3:8b", },
                 new() { Model = "gemma", },
+                new() { Model = "codellama", },
+                new() { Model = "mixtral", },
+                new() { Model = "command-r", },
+            ]
+        },
+        new CreateApiProvider
+        {
+            Name = "dell",
+            ApiTypeId = 1,
+            ApiBaseUrl = "https://dell.pvq.app",
+            Concurrency = 1,
+            Priority = 0,
+            Enabled = true,
+            Models = [
+                // new() { Model = "phi3", },
+                new() { Model = "mistral", },
+                // new() { Model = "llama3:8b", },
+                new() { Model = "llama3:70b", },
+                new() { Model = "gemma", },
+                new() { Model = "codellama", },
+                new() { Model = "mixtral", },
+                new() { Model = "command-r", },
             ]
         },
         new CreateApiProvider
@@ -73,7 +95,7 @@ public class PvqApiTests
             Models =
             [
                 new() { Model = "llama3:8b", },
-                new() { Model = "llama3-70b-8192", },
+                new() { Model = "llama3:70b", },
                 new() { Model = "gemma", },
                 new() { Model = "mixtral", },
             ]
@@ -85,14 +107,10 @@ public class PvqApiTests
             ApiKey = Environment.GetEnvironmentVariable("OPENROUTER_API_KEY"),
             Concurrency = 1,
             Priority = 0,
-            Enabled = false,
+            Enabled = true,
             Models =
             [
-                new() { Model = "mistral" },
-                new() { Model = "gemma" },
-                new() { Model = "mixtral", },
                 new() { Model = "mixtral:8x22b", },
-                new() { Model = "llama3:8b", },
                 new() { Model = "llama3:70b" },
                 new() { Model = "wizardlm2:7b", },
                 new() { Model = "wizardlm2:8x22b", },
@@ -115,6 +133,21 @@ public class PvqApiTests
         },
         new CreateApiProvider
         {
+            Name = "google",
+            ApiTypeId = 5,
+            ApiKey = Environment.GetEnvironmentVariable("GOOGLE_API_KEY"),
+            Concurrency = 1,
+            Priority = 0,
+            Enabled = true,
+            Models =
+            [
+                new() { Model = "gemini-pro", },
+                new() { Model = "gemini-pro-1.5", },
+                new() { Model = "gemini-pro-vision", },
+            ]
+        },
+        new CreateApiProvider
+        {
             Name = "mistral",
             ApiTypeId = 4,
             ApiKey = Environment.GetEnvironmentVariable("MISTRAL_API_KEY"),
@@ -129,21 +162,6 @@ public class PvqApiTests
                 new() { Model = "mistral-small", },
                 new() { Model = "mistral-large", },
                 new() { Model = "mistral-embed", },
-            ]
-        },
-        new CreateApiProvider
-        {
-            Name = "google",
-            ApiTypeId = 5,
-            ApiKey = Environment.GetEnvironmentVariable("GOOGLE_API_KEY"),
-            Concurrency = 1,
-            Priority = 0,
-            Enabled = true,
-            Models =
-            [
-                new() { Model = "gemini-pro", },
-                new() { Model = "gemini-pro-1.5", },
-                new() { Model = "gemini-pro-vision", },
             ]
         },
     ];
