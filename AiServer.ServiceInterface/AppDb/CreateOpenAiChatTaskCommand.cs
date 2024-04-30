@@ -1,8 +1,10 @@
 ﻿using System.Data;
-using AiServer.ServiceModel;
 using Microsoft.Extensions.Logging;
+using ServiceStack;
 using ServiceStack.Messaging;
 using ServiceStack.OrmLite;
+using AiServer.ServiceModel;
+using AiServer.ServiceModel.Types;
 
 namespace AiServer.ServiceInterface.AppDb;
 

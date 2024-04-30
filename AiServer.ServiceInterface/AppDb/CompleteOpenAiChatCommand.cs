@@ -1,6 +1,8 @@
 ﻿using System.Data;
-using AiServer.ServiceModel;
+using ServiceStack;
 using ServiceStack.OrmLite;
+using AiServer.ServiceModel;
+using AiServer.ServiceModel.Types;
 
 namespace AiServer.ServiceInterface.AppDb;
 

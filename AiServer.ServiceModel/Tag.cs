@@ -1,8 +1,4 @@
-using ServiceStack;
-
 namespace AiServer.ServiceModel;
-
-public class ValidateApiKeyAttribute() : ValidateRequestAttribute("ApiKey()");
 
 public static class Tag
 {

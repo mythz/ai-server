@@ -9,12 +9,23 @@ namespace AiServer.Tests;
 public class PingTests
 {
     [Test]
-    public async Task Can_test_all_providers()
+    public async Task Can_check_all_local_providers()
     {
-        // var client = TestUtils.CreateAdminClient();
+        var client = TestUtils.CreateAdminClient();
+        await CheckAllActiveProviders(client);
+    }
+
+    [Test]
+    public async Task Can_check_all_public_providers()
+    {
         var client = TestUtils.CreatePublicAdminClient();
+        await CheckAllActiveProviders(client);
+    }
+
+    private static async Task CheckAllActiveProviders(JsonApiClient client)
+    {
         var activeProviders = await client.GetAsync(new GetActiveProviders());
-        
+
         foreach (var provider in activeProviders.Results)
         {
             var model = provider.Models.First().Model;

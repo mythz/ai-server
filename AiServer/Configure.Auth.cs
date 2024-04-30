@@ -11,5 +11,12 @@ public class ConfigureAuth : IHostingStartup
             services.AddPlugin(new AuthFeature(() => new AuthUserSession(), [
                 new AuthSecretAuthProvider(),
             ]));
+            
+            services.AddPlugin(new ApiKeysFeature());
+        })
+        .ConfigureAppHost(appHost =>
+        {
+            using var db = HostContext.AppHost.GetDbConnection();
+            appHost.GetPlugin<ApiKeysFeature>().InitSchema(db);
         });
 }

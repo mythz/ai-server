@@ -1,5 +1,6 @@
 ﻿using AiServer.ServiceModel;
 using ServiceStack;
+using ServiceStack.Configuration;
 
 namespace AiServer.Tests;
 
@@ -14,6 +15,26 @@ public static class TestUtils
     public static string PvqBaseUrl = "https://localhost:5001";
     public static string PublicAiServerBaseUrl = "https://openai.servicestack.net";
     
+    public static List<CreateApiKey> ApiKeys = [
+        new() { Id = "ak-4357089af5a446cab0fdc44830e03617", UserId = "CB923F42-AE84-4B77-B2A8-5C6E71F29DF4", UserName = "Admin", Scopes = [RoleNames.Admin] },
+        new() { Id = "ak-1359a079e98841a2a0c52419433d207f", UserId = "A8BBBFDB-1DA6-44E6-96D9-93995A7CBCEF", UserName = "System" },
+        new() { Id = "ak-78A1B9B4CD684118B2EAFAB1F268E3DB", UserId = "3B1D6B15-86A4-44CD-AF64-75D4AC10530B", UserName = "pvq" },
+        new() { UserId = "43AD9AE7-5B0E-4CBE-8C37-0752F27622E8", UserName = "imac" },
+        new() { UserId = "3D373B5A-2CF9-4290-B306-BBA546D63766", UserName = "macbook" },
+        new() { UserId = "E24EFC4B-8743-4CF3-8904-4C0492B285E0", UserName = "supermicro" },
+    ];
+
+    public static JsonApiClient CreateAuthSecretClient() => new(AiServerBaseUrl) {
+        Headers = {
+            [Keywords.AuthSecret] = Environment.GetEnvironmentVariable("AUTH_SECRET")
+        }
+    };
+    public static JsonApiClient CreatePublicAuthSecretClient() => new(PublicAiServerBaseUrl) {
+        Headers = {
+            [Keywords.AuthSecret] = Environment.GetEnvironmentVariable("AUTH_SECRET")
+        }
+    };
+
     public static JsonApiClient CreateSystemClient() => new(AiServerBaseUrl) {
         BearerToken = "ak-1359a079e98841a2a0c52419433d207f",
     };

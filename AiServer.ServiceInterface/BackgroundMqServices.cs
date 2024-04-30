@@ -2,6 +2,7 @@
 using AiServer.ServiceInterface.Executor;
 using AiServer.ServiceInterface.Notification;
 using AiServer.ServiceModel;
+using AiServer.ServiceModel.Types;
 using ServiceStack;
 using ServiceStack.DataAnnotations;
 

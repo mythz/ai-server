@@ -5,10 +5,20 @@ using ServiceStack.Web;
 
 namespace AiServer.ServiceInterface;
 
-public class AuthSecretAuthProvider()
-    : AuthProvider(null, "/auth/" + Keywords.AuthSecret, Keywords.AuthSecret), IAuthWithRequest
+public class AuthSecretAuthProvider : AuthProvider, IAuthWithRequest
 {
+    public AuthSecretAuthProvider() : base(null, "/auth/" + Keywords.AuthSecret, Keywords.AuthSecret)
+    {
+    }
+
     public override string Type => Keywords.AuthSecret;
+
+    public override void Register(IAppHost appHost, AuthFeature feature)
+    {
+        Label = feature.AdminAuthSecretInfo.Label;
+        FormLayout = feature.AdminAuthSecretInfo.FormLayout;
+        feature.AdminAuthSecretInfo.FormLayout = null;
+    }
 
     public override bool IsAuthorized(IAuthSession session, IAuthTokens tokens, Authenticate? request = null)
     {

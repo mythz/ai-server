@@ -166,19 +166,35 @@ public class PvqApiTests
             ]
         },
     ];
-    
-    [Test]
-    [Ignore("Skip on CI")]
-    public async Task Can_Add_ApiProviders()
+
+    private static async Task CreateApiKeysAndAuthProviders(JsonApiClient client)
     {
         ClientConfig.UseSystemJson = UseSystemJson.Always;
+
+        foreach (var apiKey in TestUtils.ApiKeys)
+        {
+            client.Send(apiKey);
+        }
         
-        // var client = TestUtils.CreateAdminClient();
-        var client = TestUtils.CreatePublicAdminClient();
         foreach (var createApiProvider in ApiProviders)
         {
             var api = await client.ApiAsync(createApiProvider);
             api.ThrowIfError();
         }
     }
+
+    [Test]
+    public async Task Create_Local_ApiKeys_and_ApiProviders()
+    {
+        var client = TestUtils.CreateAuthSecretClient();
+        await CreateApiKeysAndAuthProviders(client);
+    }
+
+    [Test]
+    public async Task Create_Remote_ApiKeys_and_ApiProviders()
+    {
+        var client = TestUtils.CreatePublicAuthSecretClient();
+        await CreateApiKeysAndAuthProviders(client);
+    }
+    
 }

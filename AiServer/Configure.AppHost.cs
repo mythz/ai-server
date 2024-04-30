@@ -1,6 +1,7 @@
 using System.Data;
 using AiServer.ServiceInterface;
 using AiServer.ServiceModel;
+using AiServer.ServiceModel.Types;
 using ServiceStack.Auth;
 using ServiceStack.Data;
 using ServiceStack.OrmLite;
@@ -12,10 +13,11 @@ namespace AiServer;
 public class AppHost() : AppHostBase("AiServer"), IHostingStartup
 {
     public void Configure(IWebHostBuilder builder) => builder
-        .ConfigureServices(services => {
+        .ConfigureServices((context,services) => {
             // Configure ASP.NET Core IOC Dependencies
+            context.Configuration.GetSection(nameof(AppConfig)).Bind(AppConfig.Instance);
+            services.AddSingleton(AppConfig.Instance);
             services.AddSingleton(AppData.Instance);
-            InitOptions.ScriptContext.ScriptMethods.Add(new ValidationScriptMethods());
         });
 
     public override IDbConnection GetDbConnection(string? namedConnection)
@@ -50,11 +52,30 @@ public class AppHost() : AppHostBase("AiServer"), IHostingStartup
     public override void Configure()
     {
         // Configure ServiceStack, Run custom logic after ASP.NET Core Startup
+        var authSecret = Environment.GetEnvironmentVariable("AUTH_SECRET") ?? AppConfig.Instance.AuthSecret;
         SetConfig(new HostConfig {
-            AdminAuthSecret = Environment.GetEnvironmentVariable("AUTH_SECRET") ?? "p@55wOrd",
+            AdminAuthSecret = authSecret,
         });
         
         using var db = ApplicationServices.GetRequiredService<IDbConnectionFactory>().OpenDbConnection();
         AppData.Instance.Init(db);
+        
+        /*
+        this.ModifyAppMetadata((req, meta) => {
+            meta.Plugins.Auth.AuthProviders.Insert(0, new MetaAuthProvider {
+                Name = "apikey",
+                Label = "API Key",
+                Type = "Bearer",
+                FormLayout = [
+                    new InputInfo(nameof(IHasBearerToken.BearerToken), ServiceStack.Html.Input.Types.Password) {
+                        Label = "API Key",
+                        Placeholder = "",
+                        Required = true,
+                    }
+                ]
+            });
+        });
+        */
+        
     }
 }

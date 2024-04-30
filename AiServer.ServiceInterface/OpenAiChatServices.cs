@@ -1,5 +1,6 @@
 ﻿using AiServer.ServiceInterface.AppDb;
 using AiServer.ServiceModel;
+using AiServer.ServiceModel.Types;
 using Microsoft.AspNetCore.Http;
 using ServiceStack;
 using ServiceStack.Data;
@@ -41,7 +42,7 @@ public class OpenAiChatServices(
         var task = request.ConvertTo<OpenAiChatTask>();
         task.Id = appData.GetNextChatTaskId();
         task.Model = model;
-        task.CreatedBy = Request.GetAccessKeyUser() ?? "System";
+        task.CreatedBy = Request.GetApiKeyUser() ?? "System";
         
         mq.Publish(new AppDbWrites {
             CreateOpenAiChatTask = task,
@@ -207,5 +208,13 @@ public class OpenAiChatServices(
                 ? $"{apiProvider.Name} is back online" 
                 : $"{apiProvider.Name} was taken offline"
         };
+    }
+
+    public async Task<object> Any(CreateApiKey request)
+    {
+        var feature = AssertPlugin<ApiKeysFeature>();
+        var apiKey = request.ConvertTo<ApiKeysFeature.ApiKey>();
+        await feature.InsertAllAsync(Db, [apiKey]);
+        return apiKey.ConvertTo<CreateApiKeyResponse>();
     }
 }

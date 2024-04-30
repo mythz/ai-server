@@ -1,6 +1,7 @@
 using System.Data;
-using AiServer.ServiceModel;
+using ServiceStack;
 using ServiceStack.OrmLite;
+using AiServer.ServiceModel;
 
 namespace AiServer.ServiceInterface;
 

@@ -1,8 +1,9 @@
-﻿using ServiceStack;
-using ServiceStack.DataAnnotations;
+﻿using AiServer.ServiceModel.Types;
+using ServiceStack;
 
 namespace AiServer.ServiceModel;
 
+[ValidateApiKey]
 public class QueryOpenAiChat : QueryDb<OpenAiChatTask>
 {
     public int? Id { get; set; }
@@ -43,20 +44,7 @@ public class FetchOpenAiChatRequestsResponse
     public ResponseStatus? ResponseStatus { get; set; }
 }
 
-public class OpenAiChatRequest
-{
-    public long Id { get; set; }
-    public string Model { get; set; }
-    public string Provider { get; set; }
-    public OpenAiChat Request { get; set; }
-}
-
 [ValidateApiKey]
-public class OpenAiChatOperations : IPost, IReturn<EmptyResponse>
-{
-    public bool? RequeueIncompleteTasks { get; set; }
-}
-
 public class CompleteOpenAiChat : IPost, IReturn<EmptyResponse>
 {
     public long Id { get; set; }
@@ -65,6 +53,7 @@ public class CompleteOpenAiChat : IPost, IReturn<EmptyResponse>
     public OpenAiChatResponse Response { get; set; }
 }
 
+[ValidateApiKey]
 public class FailOpenAiChat : IPost, IReturn<EmptyResponse>
 {
     public int Id { get; set; }
@@ -73,21 +62,7 @@ public class FailOpenAiChat : IPost, IReturn<EmptyResponse>
     public ResponseStatus Error { get; set; }
 }
 
-public class OpenAiChatTask : TaskBase
-{
-    public OpenAiChat Request { get; set; }
-    public OpenAiChatResponse? Response { get; set; }
-}
-
-public class OpenAiChatCompleted : OpenAiChatTask {}
-public class OpenAiChatFailed : OpenAiChatTask
-{
-    /// <summary>
-    /// When the Task was failed
-    /// </summary>
-    public DateTime FailedDate { get; set; }
-}
-
+[ValidateApiKey]
 public class QueryCompletedChatTasks : QueryDb<OpenAiChatCompleted>
 {
     public string? Db { get; set; }
@@ -95,6 +70,7 @@ public class QueryCompletedChatTasks : QueryDb<OpenAiChatCompleted>
     public string? RefId { get; set; }
 }
 
+[ValidateApiKey]
 public class QueryFailedChatTasks : QueryDb<OpenAiChatFailed>
 {
     public string? Db { get; set; }
@@ -103,7 +79,7 @@ public class QueryFailedChatTasks : QueryDb<OpenAiChatFailed>
 [ValidateApiKey]
 public class GetActiveProviders : IGet, IReturn<GetActiveProvidersResponse> {}
 
-[ValidateApiKey]
+[ValidateAuthSecret]
 public class ResetActiveProviders : IGet, IReturn<GetActiveProvidersResponse> {}
 
 public class GetActiveProvidersResponse
@@ -120,9 +96,41 @@ public class ChatApiProvider : IPost, IReturn<OpenAiChatResponse>
     public OpenAiChat Request { get; set; }
 }
 
-[ValidateIsAdmin]
+[ValidateAuthSecret]
+public class OpenAiChatOperations : IPost, IReturn<EmptyResponse>
+{
+    public bool? RequeueIncompleteTasks { get; set; }
+}
+
+[ValidateAuthSecret]
 public class ChangeApiProviderStatus : IPost, IReturn<StringResponse>
 {
     public string Provider { get; set; }
     public bool Online { get; set; }
+}
+
+[ValidateAuthSecret]
+public class CreateApiKey : IPost, IReturn<CreateApiKeyResponse>
+{
+    public string Id { get; set; }
+    public string Name { get; set; }
+    public string? UserId { get; set; }
+    public string? UserName { get; set; }
+    public List<string> Scopes { get; set; } = new();
+    public string? Notes { get; set; }
+    public int? RefId { get; set; }
+    public string? RefIdStr { get; set; }
+    public Dictionary<string, string>? Meta { get; set; }
+}
+public class CreateApiKeyResponse
+{
+    public string Id { get; set; }
+    public string Name { get; set; }
+    public string? UserId { get; set; }
+    public string? UserName { get; set; }
+    public string VisibleKey { get; set; }
+    public DateTime CreatedDate { get; set; }
+    public DateTime? ExpiryDate { get; set; }
+    public DateTime? CancelledDate { get; set; }
+    public string? Notes { get; set; }
 }

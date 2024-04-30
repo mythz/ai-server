@@ -3,9 +3,11 @@ using ServiceStack.DataAnnotations;
 
 namespace AiServer.ServiceModel;
 
+[ValidateApiKey]
 [Description("API Providers that can process AI Tasks")]
 public class QueryApiProviders : QueryDb<ApiProvider> {}
 
+[ValidateAuthSecret]
 [Description("Create an API Provider that can process AI Tasks")]
 [AutoPopulate(nameof(ApiProvider.CreatedDate),  Eval = "utcNow")]
 public class CreateApiProvider : ICreateDb<ApiProvider>, IReturn<IdResponse>
@@ -42,9 +44,11 @@ public class CreateApiProvider : ICreateDb<ApiProvider>, IReturn<IdResponse>
     public List<ApiProviderModel> Models { get; set; }
 }
 
+[ValidateApiKey]
 [Description("Different Models available in AI Server")]
 public class QueryApiModels : QueryDb<ApiModel> {}
 
+[ValidateAuthSecret]
 [Description("Different Models available for the API")]
 public class CreateApiModel : ICreateDb<ApiModel>, IReturn<IdResponse>
 {
@@ -61,5 +65,6 @@ public class CreateApiModel : ICreateDb<ApiModel>, IReturn<IdResponse>
     public string? Notes { get; set; }
 }
 
+[ValidateApiKey]
 [Description("The Type and behavior of different API Providers")]
 public class QueryApiType : QueryDb<ApiType> {}

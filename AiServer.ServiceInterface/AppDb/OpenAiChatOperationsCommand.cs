@@ -1,4 +1,5 @@
 using System.Data;
+using ServiceStack;
 using ServiceStack.OrmLite;
 
 namespace AiServer.ServiceInterface.AppDb;

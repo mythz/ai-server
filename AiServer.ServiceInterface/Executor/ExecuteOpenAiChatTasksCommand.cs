@@ -1,5 +1,6 @@
 using System.Collections.Concurrent;
 using AiServer.ServiceModel;
+using AiServer.ServiceModel.Types;
 using Microsoft.Extensions.Logging;
 using ServiceStack;
 using ServiceStack.Data;

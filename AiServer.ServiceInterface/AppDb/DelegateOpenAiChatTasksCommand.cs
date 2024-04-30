@@ -1,5 +1,6 @@
-﻿using AiServer.ServiceModel;
+﻿using AiServer.ServiceModel.Types;
 using Microsoft.Extensions.Logging;
+using ServiceStack;
 using ServiceStack.Data;
 using ServiceStack.Messaging;
 using ServiceStack.OrmLite;

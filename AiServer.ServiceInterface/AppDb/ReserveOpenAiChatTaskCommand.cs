@@ -1,5 +1,6 @@
 using System.Data;
 using Microsoft.Extensions.Logging;
+using ServiceStack;
 using ServiceStack.Messaging;
 using ServiceStack.OrmLite;
 
