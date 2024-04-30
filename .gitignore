@@ -6,6 +6,7 @@
 # Custom
 dist/
 App_Data/
+*.patch
 
 # User-specific files
 *.suo
