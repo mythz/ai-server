@@ -4,15 +4,15 @@ using ServiceStack.OrmLite;
 
 namespace AiServer.ServiceInterface;
 
-public class RecordOfflineProvider
+public class ChangeProviderStatus
 {
     public string Name { get; set; }
     public DateTime? OfflineDate { get; set; }
 }
 
-public class RecordOfflineProviderCommand(AppData appData, IDbConnection db) : IAsyncCommand<RecordOfflineProvider>
+public class ChangeProviderStatusCommand(AppData appData, IDbConnection db) : IAsyncCommand<ChangeProviderStatus>
 {
-    public async Task ExecuteAsync(RecordOfflineProvider request)
+    public async Task ExecuteAsync(ChangeProviderStatus request)
     {
         await db.UpdateOnlyAsync(() => new ApiProvider {
             OfflineDate = request.OfflineDate,

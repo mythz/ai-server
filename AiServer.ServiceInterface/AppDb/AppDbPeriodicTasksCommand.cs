@@ -1,9 +1,9 @@
 using Microsoft.Extensions.Logging;
-using ServiceStack.Messaging;
 
 namespace AiServer.ServiceInterface.AppDb;
 
-public class AppDbPeriodicTasksCommand(ILogger<AppDbPeriodicTasksCommand> log, IMessageProducer mq, ICommandExecutor executor) : IAsyncCommand<PeriodicTasks>
+public class AppDbPeriodicTasksCommand(ILogger<AppDbPeriodicTasksCommand> log, AppData appData, ICommandExecutor executor) 
+    : IAsyncCommand<PeriodicTasks>
 {
     public async Task ExecuteAsync(PeriodicTasks request)
     {
@@ -11,16 +11,43 @@ public class AppDbPeriodicTasksCommand(ILogger<AppDbPeriodicTasksCommand> log, I
 
         if (request.PeriodicFrequency == PeriodicFrequency.Frequent)
         {
-            var requeueCommand = executor.Command<RequeueIncompleteTasksCommand>();
-            await requeueCommand.ExecuteAsync(new RequeueIncompleteTasks());
+            await DoFrequentTasksAsync();
+        }
+    }
 
-            log.LogInformation("Requeued {Requeued} incomplete tasks", requeueCommand.Requeued);
-            if (requeueCommand.Requeued > 0)
+    async Task DoFrequentTasksAsync()
+    {
+        // Requeue incomplete tasks
+        var requeueCommand = executor.Command<RequeueIncompleteTasksCommand>();
+        await requeueCommand.ExecuteAsync(new RequeueIncompleteTasks());
+
+        log.LogInformation("Requeued {Requeued} incomplete tasks", requeueCommand.Requeued);
+        if (requeueCommand.Requeued > 0)
+        {
+            var delegateCommand = executor.Command<DelegateOpenAiChatTasksCommand>();
+            await delegateCommand.ExecuteAsync(new DelegateOpenAiChatTasks());
+            log.LogInformation("Delegated {Delegated} tasks", delegateCommand.DelegatedCount);
+        }
+            
+        // Check if any offline providers are back online
+        var offlineApiProviders = appData.ApiProviders.Where(x => x is { Enabled: true, OfflineDate: not null }).ToList();
+        if (offlineApiProviders.Count > 0)
+        {
+            log.LogInformation("Rechecking {OfflineCount} offline providers", offlineApiProviders.Count);
+            foreach (var apiProvider in offlineApiProviders)
             {
-                var delegateCommand = executor.Command<DelegateOpenAiChatTasksCommand>();
-                await delegateCommand.ExecuteAsync(new DelegateOpenAiChatTasks());
-                log.LogInformation("Delegated {Delegated} tasks", delegateCommand.DelegatedCount);
+                var chatProvider = apiProvider.GetOpenAiProvider();
+                if (await chatProvider.IsOnlineAsync(apiProvider))
+                {
+                    log.LogInformation("Provider {Provider} is back online", apiProvider.Name);
+                    var changeStatusCommand = executor.Command<ChangeProviderStatusCommand>();
+                    await changeStatusCommand.ExecuteAsync(new() {
+                        Name = apiProvider.Name,
+                        OfflineDate = null,
+                    });
+                }
             }
         }
     }
+    
 }

@@ -27,27 +27,27 @@ public class TimedHostedService(ILogger<TimedHostedService> logger, IMessageProd
         
         var frequentTasks = new PeriodicTasks { PeriodicFrequency = PeriodicFrequency.Frequent };
         mq.Publish(new AppDbWrites { PeriodicTasks = frequentTasks });
-        mq.Publish(new ExecutorTasks { PeriodicTasks = frequentTasks });
+        // mq.Publish(new ExecutorTasks { PeriodicTasks = frequentTasks });
 
         if (count % 60 == 0)
         {
             var hourlyTasks = new PeriodicTasks { PeriodicFrequency = PeriodicFrequency.Hourly };
             mq.Publish(new AppDbWrites { PeriodicTasks = hourlyTasks });
-            mq.Publish(new ExecutorTasks { PeriodicTasks = hourlyTasks });
+            // mq.Publish(new ExecutorTasks { PeriodicTasks = hourlyTasks });
         }
 
         if (count % (24 * 60) == 0)
         {
             var dailyTasks = new PeriodicTasks { PeriodicFrequency = PeriodicFrequency.Daily };
             mq.Publish(new AppDbWrites { PeriodicTasks = dailyTasks });
-            mq.Publish(new ExecutorTasks { PeriodicTasks = dailyTasks });
+            // mq.Publish(new ExecutorTasks { PeriodicTasks = dailyTasks });
         }
 
         if (count % (30 * 24 * 60) == 0)
         {
             var monthlyTasks = new PeriodicTasks { PeriodicFrequency = PeriodicFrequency.Monthly };
             mq.Publish(new AppDbWrites { PeriodicTasks = monthlyTasks });
-            mq.Publish(new ExecutorTasks { PeriodicTasks = monthlyTasks });
+            // mq.Publish(new ExecutorTasks { PeriodicTasks = monthlyTasks });
         }
     }
 

@@ -29,8 +29,8 @@ public class AppDbWrites : IReturn<EmptyResponse>
     [Command<CompleteNotificationCommand>]
     public CompleteNotification? CompleteNotification { get; set; }
     
-    [Command<RecordOfflineProviderCommand>]
-    public RecordOfflineProvider? RecordOfflineProvider { get; set; }
+    [Command<ChangeProviderStatusCommand>]
+    public ChangeProviderStatus? RecordOfflineProvider { get; set; }
     
     [Command<AppDbPeriodicTasksCommand>]
     public PeriodicTasks? PeriodicTasks { get; set; } 
