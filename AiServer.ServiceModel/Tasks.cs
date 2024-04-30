@@ -39,6 +39,11 @@ public class ApiProvider
     public string? ApiBaseUrl { get; set; }
         
     /// <summary>
+    /// Url to check if the API is online
+    /// </summary>
+    public string? HeartbeatUrl { get; set; }
+
+    /// <summary>
     /// Override API Paths for different AI Tasks
     /// </summary>
     public Dictionary<TaskType, string>? TaskPaths { get; set; }
@@ -57,6 +62,11 @@ public class ApiProvider
     /// Whether the Provider is enabled
     /// </summary>
     public bool Enabled { get; set; }
+    
+    /// <summary>
+    /// When the Provider went offline
+    /// </summary>
+    public DateTime? OfflineDate { get; set; }
         
     /// <summary>
     /// When the Provider was created
@@ -69,7 +79,6 @@ public class ApiProvider
     [Reference]
     public List<ApiProviderModel> Models { get; set; }
 }
-
 
 /// <summary>
 /// The models this API Provider can process 
@@ -141,14 +150,14 @@ public class ApiModel
         
     [Index(Unique = true)]
     public string Name { get; set; }
-
-    public string? Website { get; set; }
     
-    public int? Parameters { get; set; }
+    public string? Parameters { get; set; }
 
     public int? ContextSize { get; set; }
 
-    public int? Experts { get; set; }
+    public string? Website { get; set; }
+
+    public string? Developer { get; set; }
     
     public string? Notes { get; set; }
 }

@@ -1,4 +1,5 @@
 ﻿using ServiceStack;
+using ServiceStack.DataAnnotations;
 
 namespace AiServer.ServiceModel;
 
@@ -12,8 +13,6 @@ public class QueryOpenAiChat : QueryDb<OpenAiChatTask>
 public class CreateOpenAiChat : ICreateDb<OpenAiChatTask>, IReturn<CreateOpenAiChatResponse>
 {
     public string? RefId { get; set; }
-    [ValidateNotEmpty]
-    public string Model { get; set; }
     public string? Provider { get; set; }
     public string? ReplyTo { get; set; }
     public OpenAiChat Request { get; set; }
@@ -117,3 +116,6 @@ public class ChatApiProvider : IPost, IReturn<OpenAiChatResponse>
     public string Model { get; set; }
     public OpenAiChat Request { get; set; }
 }
+
+[ExcludeMetadata]
+public class RequeueTasks : IGet, IReturn<EmptyResponse> {}

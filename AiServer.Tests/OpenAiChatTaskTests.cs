@@ -75,7 +75,6 @@ public class OpenAiChatTaskTests
         var api = await client.ApiAsync(new CreateOpenAiChat {
             RefId = nextId(),
             Provider = provider,
-            Model = model,
             ReplyTo = replyTo,
             Request = new()
             {

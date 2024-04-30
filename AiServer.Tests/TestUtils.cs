@@ -71,7 +71,7 @@ public static class TestUtils
     {
         Name = "macbook",
         ApiTypeId = 1,
-        ApiBaseUrl = "http://macbook:11434",
+        ApiBaseUrl = "https://macbook.pvq.app",
         Concurrency = 1,
         Priority = 2,
         Enabled = true,

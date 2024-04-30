@@ -30,9 +30,17 @@ public class OpenAiChatServices(
 
     public async Task<object> Any(CreateOpenAiChat request)
     {
+        if (request.Request == null)
+            throw new ArgumentNullException(nameof(request.Request));
+        
+        var model = request.Request.Model;
+        if (!await Db.ExistsAsync<ApiModel>(x => x.Name == model))
+            throw HttpError.NotFound($"Model {model} not found");
+        
         request.RefId ??= Guid.NewGuid().ToString("N");
         var task = request.ConvertTo<OpenAiChatTask>();
         task.Id = appData.GetNextChatTaskId();
+        task.Model = model;
         task.CreatedBy = Request.GetAccessKeyUser() ?? "System";
         
         mq.Publish(new AppDbWrites {
@@ -167,5 +175,15 @@ public class OpenAiChatServices(
         var chatProvider = apiProvider.GetOpenAiProvider();
         var response = await chatProvider.ChatAsync(apiProvider, request.Request);
         return response.Response;
+    }
+    
+    public async Task<object> Any(RequeueTasks request)
+    {
+        mq.Publish(new AppDbWrites {
+            RequeueIncompleteTasks = new(),
+            DelegateOpenAiChatTasks = new()
+        });
+        
+        return new EmptyResponse();
     }
 }
