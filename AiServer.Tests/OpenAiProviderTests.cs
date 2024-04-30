@@ -28,6 +28,7 @@ public class OpenAiProviderTests
     }
 
     [Test]
+    [Ignore("Skip on CI")]
     public async Task Can_Send_Google_GeminiPro_Request()
     {
         var response = await GoogleOpenAiProvider.Instance.ChatAsync(TestUtils.GoogleApiProvider, new OpenAiChat
