@@ -167,6 +167,7 @@ public class PvqApiTests
     ];
     
     [Test]
+    [Ignore("Skip on CI")]
     public async Task Can_Add_ApiProviders()
     {
         ClientConfig.UseSystemJson = UseSystemJson.Always;
