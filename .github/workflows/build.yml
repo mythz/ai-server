@@ -21,7 +21,7 @@ jobs:
       - name: Extract SS license
         run: |
           SS_LICENSE=`echo '${{ secrets.APPSETTINGS_PATCH }}' | jq -r .[0].value.license`
-          echo "echo "::add-mask::$SS_LICENSE"
+          echo "::add-mask::$SS_LICENSE"
           echo "SERVICESTACK_LICENSE=${SS_LICENSE}" >> $GITHUB_ENV
 
       - name: build
