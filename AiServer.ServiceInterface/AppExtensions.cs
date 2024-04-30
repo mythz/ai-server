@@ -55,6 +55,7 @@ public static class AppExtensions
     public static OpenAiChatFailed ToOpenAiChatFailed(this OpenAiChatTask from)
     {
         var to = from.CreateNew<OpenAiChatFailed>();
+        to.Request = from.Request;
         to.FailedDate = DateTime.UtcNow;
         return to;
     }
