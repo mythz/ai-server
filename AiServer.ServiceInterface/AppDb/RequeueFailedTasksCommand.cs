@@ -46,5 +46,8 @@ public class RequeueFailedTasksCommand(ILogger<RequeueFailedTasksCommand> log,
         mq.Publish(new AppDbWrites {
             DelegateOpenAiChatTasks = new()
         });
+        mq.Publish(new ExecutorTasks {
+            ExecuteOpenAiChatTasks = new()
+        });
     }
 }

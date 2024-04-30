@@ -18,5 +18,8 @@ public class ResetTaskQueueCommand(IDbConnection db, IMessageProducer mq) : IAsy
         mq.Publish(new AppDbWrites {
             DelegateOpenAiChatTasks = new()
         });
+        mq.Publish(new ExecutorTasks {
+            ExecuteOpenAiChatTasks = new()
+        });
     }
 }
