@@ -23,12 +23,10 @@ public class AppDbPeriodicTasksCommand(ILogger<AppDbPeriodicTasksCommand> log, A
         await requeueCommand.ExecuteAsync(new RequeueIncompleteTasks());
 
         log.LogInformation("Requeued {Requeued} incomplete tasks", requeueCommand.Requeued);
-        if (requeueCommand.Requeued > 0)
-        {
-            var delegateCommand = executor.Command<DelegateOpenAiChatTasksCommand>();
-            await delegateCommand.ExecuteAsync(new DelegateOpenAiChatTasks());
-            log.LogInformation("Delegated {Delegated} tasks", delegateCommand.DelegatedCount);
-        }
+
+        var delegateCommand = executor.Command<DelegateOpenAiChatTasksCommand>();
+        await delegateCommand.ExecuteAsync(new DelegateOpenAiChatTasks());
+        log.LogInformation("Delegated {Delegated} tasks", delegateCommand.DelegatedCount);
             
         // Check if any offline providers are back online
         var offlineApiProviders = appData.ApiProviders.Where(x => x is { Enabled: true, OfflineDate: not null }).ToList();
