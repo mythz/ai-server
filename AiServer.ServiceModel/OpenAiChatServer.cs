@@ -99,7 +99,9 @@ public class ChatApiProvider : IPost, IReturn<OpenAiChatResponse>
 [ValidateAuthSecret]
 public class OpenAiChatOperations : IPost, IReturn<EmptyResponse>
 {
+    public bool? ResetTaskQueue { get; set; }
     public bool? RequeueIncompleteTasks { get; set; }
+    public List<long>? RequeueFailedTaskIds { get; set; }
 }
 
 [ValidateAuthSecret]

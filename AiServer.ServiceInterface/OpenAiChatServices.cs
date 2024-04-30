@@ -131,7 +131,13 @@ public class OpenAiChatServices(
     {
         mq.Publish(new AppDbWrites {
             RequeueIncompleteTasks = request.RequeueIncompleteTasks == true
-                ? new RequeueIncompleteTasks()
+                ? new()
+                : null,
+            ResetTaskQueue = request.ResetTaskQueue == true
+                ? new()
+                : null,
+            RequeueFailedTasks = request.RequeueFailedTaskIds is { Count: > 0 }
+                ? new() { Ids = request.RequeueFailedTaskIds }
                 : null,
         });
         

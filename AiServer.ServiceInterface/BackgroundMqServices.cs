@@ -20,6 +20,12 @@ public class AppDbWrites : IReturn<EmptyResponse>
     
     [Command<RequeueIncompleteTasksCommand>]
     public RequeueIncompleteTasks? RequeueIncompleteTasks { get; set; }
+    
+    [Command<ResetTaskQueueCommand>]
+    public ResetTaskQueue? ResetTaskQueue { get; set; }
+    
+    [Command<RequeueFailedTasksCommand>]
+    public RequeueFailedTasks? RequeueFailedTasks { get; set; }
 
     [Command<DelegateOpenAiChatTasksCommand>]
     public DelegateOpenAiChatTasks? DelegateOpenAiChatTasks{ get; set; }
