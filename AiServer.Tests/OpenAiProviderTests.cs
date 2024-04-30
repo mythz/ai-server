@@ -8,6 +8,7 @@ namespace AiServer.Tests;
 public class OpenAiProviderTests
 {
     [Test]
+    [Ignore("Skip on CI")]
     public async Task Can_Send_Ollama_Phi3_Request()
     {
         var response = await OpenAiProvider.Instance.ChatAsync(TestUtils.MacbookApiProvider, new OpenAiChat

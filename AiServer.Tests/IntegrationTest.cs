@@ -17,6 +17,7 @@ public class IntegrationTest
 
         public override void Configure(Container container)
         {
+            ServiceStackHost.InitOptions.ScriptContext.ScriptMethods.Add(new ValidationScriptMethods());
         }
     }
 
