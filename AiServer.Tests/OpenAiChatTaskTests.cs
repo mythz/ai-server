@@ -237,7 +237,7 @@ public class OpenAiChatTaskTests
         var chatRequest = entry.Request;
 
         var sw = Stopwatch.StartNew();
-        var openApiChatEndpoint = "http://macbook:11434/v1/chat/completions";
+        var openApiChatEndpoint = "http://macbook.pvq.app/v1/chat/completions";
         var responseJson = await openApiChatEndpoint.PostJsonToUrlAsync(chatRequest);
         var durationMs = (int)sw.ElapsedMilliseconds;
         

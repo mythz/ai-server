@@ -98,7 +98,7 @@ public class ApiProviderModel
     /// <summary>
     /// What Model to use for this API Provider
     /// </summary>
-    public string ApiModel { get; set; }
+    public string? ApiModel { get; set; }
 }
 
 /// <summary>
@@ -123,6 +123,11 @@ public class ApiType
     /// The API Base Url
     /// </summary>
     public string ApiBaseUrl { get; set; }
+
+    /// <summary>
+    /// The URL to check if the API is online
+    /// </summary>
+    public string? HeartbeatUrl { get; set; }
         
     /// <summary>
     /// Uses a Custom IOpenAiProvider

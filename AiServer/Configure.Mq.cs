@@ -16,6 +16,7 @@ public class ConfigureMq : IHostingStartup
         .ConfigureServices(services => {
             services.AddSingleton<IMessageService>(c => new BackgroundMqService());
             services.AddPlugin(new CommandsFeature());
+            services.AddHostedService<TimedHostedService>();
         })
         .ConfigureAppHost(afterAppHostInit: appHost => {
             var mqService = appHost.Resolve<IMessageService>();

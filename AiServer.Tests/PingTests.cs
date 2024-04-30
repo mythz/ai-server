@@ -11,7 +11,8 @@ public class PingTests
     [Test]
     public async Task Can_test_all_providers()
     {
-        var client = TestUtils.CreateAdminClient();
+        // var client = TestUtils.CreateAdminClient();
+        var client = TestUtils.CreatePublicAdminClient();
         var activeProviders = await client.GetAsync(new GetActiveProviders());
         
         foreach (var provider in activeProviders.Results)

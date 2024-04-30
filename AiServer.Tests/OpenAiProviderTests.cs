@@ -5,10 +5,10 @@ using ServiceStack.Text;
 
 namespace AiServer.Tests;
 
+[Explicit]
 public class OpenAiProviderTests
 {
     [Test]
-    [Ignore("Skip on CI")]
     public async Task Can_Send_Ollama_Phi3_Request()
     {
         var response = await OpenAiProvider.Instance.ChatAsync(TestUtils.MacbookApiProvider, new OpenAiChat
@@ -29,7 +29,6 @@ public class OpenAiProviderTests
     }
 
     [Test]
-    [Ignore("Skip on CI")]
     public async Task Can_Send_Google_GeminiPro_Request()
     {
         var response = await GoogleOpenAiProvider.Instance.ChatAsync(TestUtils.GoogleApiProvider, new OpenAiChat

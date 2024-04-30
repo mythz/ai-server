@@ -12,6 +12,7 @@ public static class TestUtils
 
     public static string AiServerBaseUrl = "https://localhost:5005";
     public static string PvqBaseUrl = "https://localhost:5001";
+    public static string PublicAiServerBaseUrl = "https://openai.servicestack.net";
     
     public static JsonApiClient CreateSystemClient() => new(AiServerBaseUrl) {
         BearerToken = "ak-1359a079e98841a2a0c52419433d207f",
@@ -21,6 +22,10 @@ public static class TestUtils
     };
     public static JsonApiClient CreatePvqClient() => new(AiServerBaseUrl) {
         BearerToken = "ak-78A1B9B4CD684118B2EAFAB1F268E3DB",
+    };
+
+    public static JsonApiClient CreatePublicAdminClient() => new(PublicAiServerBaseUrl) {
+        BearerToken = "ak-4357089af5a446cab0fdc44830e03617",
     };
 
     public static JsonApiClient PvqApiClient() => new(PvqBaseUrl) {

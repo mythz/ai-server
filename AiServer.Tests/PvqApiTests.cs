@@ -4,6 +4,7 @@ using ServiceStack;
 
 namespace AiServer.Tests;
 
+[Explicit]
 public class PvqApiTests
 {
     private static List<CreateApiProvider> ApiProviders =
@@ -172,7 +173,8 @@ public class PvqApiTests
     {
         ClientConfig.UseSystemJson = UseSystemJson.Always;
         
-        var client = TestUtils.CreateAdminClient();
+        // var client = TestUtils.CreateAdminClient();
+        var client = TestUtils.CreatePublicAdminClient();
         foreach (var createApiProvider in ApiProviders)
         {
             var api = await client.ApiAsync(createApiProvider);

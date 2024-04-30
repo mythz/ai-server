@@ -100,7 +100,7 @@ public class Migration1001 : MigrationBase
         /// <summary>
         /// What Model to use for this API Provider
         /// </summary>
-        public string ApiModel { get; set; }
+        public string? ApiModel { get; set; }
     }
 
     /// <summary>
@@ -218,6 +218,7 @@ public class Migration1001 : MigrationBase
             TaskPaths = new() {
                 [TaskType.OpenAiChat] = "/v1/chat/completions",
             },
+            HeartbeatUrl = "/api/tags",
         });
         Db.Insert(new ApiType
         {
@@ -228,6 +229,7 @@ public class Migration1001 : MigrationBase
             TaskPaths = new() {
                 [TaskType.OpenAiChat] = "/v1/chat/completions",
             },
+            HeartbeatUrl = "https://openrouter.ai/api/v1/auth/key",
             ApiModels = new()
             {
                 ["mistral"] = "mistralai/mistral-7b-instruct",
@@ -268,6 +270,7 @@ public class Migration1001 : MigrationBase
             TaskPaths = new() {
                 [TaskType.OpenAiChat] = "/v1/chat/completions",
             },
+            HeartbeatUrl = "https://api.groq.com",
             ApiModels = new()
             {
                 ["llama3:8b"] = "llama3-8b-8192",
@@ -285,6 +288,7 @@ public class Migration1001 : MigrationBase
             TaskPaths = new() {
                 [TaskType.OpenAiChat] = "/v1/chat/completions",
             },
+            HeartbeatUrl = "https://api.mistral.ai/models",
             ApiModels = new()
             {
                 ["mistral"] = "open-mistral-7b",

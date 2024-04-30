@@ -11,10 +11,12 @@ public class DelegateOpenAiChatTasks {}
 public class DelegateOpenAiChatTasksCommand(ILogger<DelegateOpenAiChatTasksCommand> log, AppData appData, 
     IDbConnectionFactory dbFactory, IMessageProducer mq) : IAsyncCommand<DelegateOpenAiChatTasks>
 {
-    public static long running = 0;
+    private static long running = 0;
     public static bool Running => Interlocked.Read(ref running) > 0;
 
     private static long counter = 0;
+    
+    public int DelegatedCount { get; set; }
     
     public async Task ExecuteAsync(DelegateOpenAiChatTasks request)
     {
@@ -45,6 +47,7 @@ public class DelegateOpenAiChatTasksCommand(ILogger<DelegateOpenAiChatTasksComma
                         provider: apiProvider.Name,
                         take: apiProvider.Concurrency);
 
+                    DelegatedCount += pendingTasks;
                     if (pendingTasks > 0)
                     {
                         hasMore = true;

@@ -27,7 +27,7 @@ public class OllamaApiTests
             Stream = false,
         };
 
-        var openApiChatEndpoint = "http://macbook:11434/v1/chat/completions";
+        var openApiChatEndpoint = "http://macbook.pvq.app/v1/chat/completions";
         var response = await openApiChatEndpoint.PostJsonToUrlAsync(chatRequest);
         
         response.PrintDump();

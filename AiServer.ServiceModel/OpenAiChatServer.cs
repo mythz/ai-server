@@ -103,6 +103,9 @@ public class QueryFailedChatTasks : QueryDb<OpenAiChatFailed>
 [ValidateApiKey]
 public class GetActiveProviders : IGet, IReturn<GetActiveProvidersResponse> {}
 
+[ValidateApiKey]
+public class ResetActiveProviders : IGet, IReturn<GetActiveProvidersResponse> {}
+
 public class GetActiveProvidersResponse
 {
     public ApiProvider[] Results { get; set; }
@@ -117,5 +120,9 @@ public class ChatApiProvider : IPost, IReturn<OpenAiChatResponse>
     public OpenAiChat Request { get; set; }
 }
 
-[ExcludeMetadata]
-public class RequeueTasks : IGet, IReturn<EmptyResponse> {}
+[ValidateIsAdmin]
+public class ChangeApiProviderStatus : IPost, IReturn<StringResponse>
+{
+    public string Provider { get; set; }
+    public bool Online { get; set; }
+}

@@ -28,6 +28,12 @@ public class AppDbWrites : IReturn<EmptyResponse>
     
     [Command<CompleteNotificationCommand>]
     public CompleteNotification? CompleteNotification { get; set; }
+    
+    [Command<RecordOfflineProviderCommand>]
+    public RecordOfflineProvider? RecordOfflineProvider { get; set; }
+    
+    [Command<AppDbPeriodicTasksCommand>]
+    public PeriodicTasks? PeriodicTasks { get; set; } 
 }
 
 [Tag(Tag.Tasks)]
@@ -44,9 +50,22 @@ public class ExecutorTasks : IReturn<EmptyResponse>
 {
     [Command<ExecuteOpenAiChatTasksCommand>]
     public ExecuteTasks? ExecuteOpenAiChatTasks { get; set; }
+    
+    [Command<ExecutorPeriodicTasksCommand>]
+    public PeriodicTasks? PeriodicTasks { get; set; } 
 }
 
-public class ExecuteTasks {}
+public class PeriodicTasks
+{
+    public PeriodicFrequency PeriodicFrequency { get; set; }
+}
+public enum PeriodicFrequency
+{
+    Frequent,
+    Hourly,
+    Daily,
+    Monthly,
+}
 
 public class BackgroundMqServices  : Service
 {

@@ -165,7 +165,15 @@ public class OpenAiChatServices(
     public object Any(GetActiveProviders request) => new GetActiveProvidersResponse
     {
         Results = appData.ActiveProviders
-    }; 
+    };
+
+    public object Any(ResetActiveProviders request)
+    {
+        appData.ResetApiProviders(Db);
+        return new GetActiveProvidersResponse {
+            Results = appData.ActiveProviders
+        };
+    }
 
     public async Task<object> Any(ChatApiProvider request)
     {
@@ -176,14 +184,28 @@ public class OpenAiChatServices(
         var response = await chatProvider.ChatAsync(apiProvider, request.Request);
         return response.Response;
     }
-    
-    public async Task<object> Any(RequeueTasks request)
+
+    public async Task<object> Any(ChangeApiProviderStatus request)
     {
-        mq.Publish(new AppDbWrites {
-            RequeueIncompleteTasks = new(),
-            DelegateOpenAiChatTasks = new()
-        });
+        var apiProvider = appData.ApiProviders.FirstOrDefault(x => x.Name == request.Provider)
+            ?? throw HttpError.NotFound("ApiProvider not found");
         
-        return new EmptyResponse();
+        DateTime? offlineDate = request.Online ? null : DateTime.UtcNow;
+        apiProvider.OfflineDate = offlineDate;
+        
+        MessageProducer.Publish(new AppDbWrites
+        {
+            RecordOfflineProvider = new()
+            {
+                Name = apiProvider.Name,
+                OfflineDate = offlineDate,
+            }
+        });
+        return new StringResponse
+        {
+            Result = offlineDate == null 
+                ? $"{apiProvider.Name} is back online" 
+                : $"{apiProvider.Name} was taken offline"
+        };
     }
 }

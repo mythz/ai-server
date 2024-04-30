@@ -10,6 +10,8 @@ public record OpenAiChatResult(OpenAiChatResponse Response, int DurationMs);
 
 public interface IOpenAiProvider
 {
+    Task<bool> IsOnlineAsync(ApiProvider apiProvider);
+
     Task<OpenAiChatResult> ChatAsync(ApiProvider apiProvider, OpenAiChat request);
 }
 
@@ -19,17 +21,17 @@ public class OpenAiProvider : IOpenAiProvider
     
     public async Task<OpenAiChatResult> ChatAsync(ApiProvider apiProvider, OpenAiChat request)
     {
+        var sw = Stopwatch.StartNew();
+        var openApiChatEndpoint = apiProvider.GetApiEndpointUrlFor(TaskType.OpenAiChat);
+
+        Action<HttpRequestMessage>? requestFilter = apiProvider.ApiKey != null
+            ? req => req.Headers.Authorization = new AuthenticationHeaderValue("Bearer", apiProvider.ApiKey)
+            : null;
+
+        request.Model = apiProvider.GetApiModel(request.Model);
+
         try
         {
-            var sw = Stopwatch.StartNew();
-            var openApiChatEndpoint = apiProvider.GetApiEndpointUrlFor(TaskType.OpenAiChat);
-
-            Action<HttpRequestMessage>? requestFilter = apiProvider.ApiKey != null
-                ? req => req.Headers.Authorization = new AuthenticationHeaderValue("Bearer", apiProvider.ApiKey)
-                : null;
-
-            request.Model = apiProvider.GetApiModel(request.Model);
-
             var responseJson = await openApiChatEndpoint.PostJsonToUrlAsync(request, requestFilter:requestFilter);
             var durationMs = (int)sw.ElapsedMilliseconds;
             var response = responseJson.FromJson<OpenAiChatResponse>();
@@ -39,6 +41,47 @@ public class OpenAiProvider : IOpenAiProvider
         {
             Console.WriteLine(e);
             throw;
+        }
+    }
+
+    public async Task<bool> IsOnlineAsync(ApiProvider apiProvider)
+    {
+        try
+        {
+            var heartbeatUrl = apiProvider.HeartbeatUrl;
+            if (heartbeatUrl == null)
+            {
+                heartbeatUrl = apiProvider.ApiType?.HeartbeatUrl;
+                if (heartbeatUrl != null && heartbeatUrl.StartsWith('/'))
+                    heartbeatUrl = apiProvider.ApiBaseUrl.CombineWith(heartbeatUrl);
+            }
+            if (heartbeatUrl != null)
+            {
+                Action<HttpRequestMessage>? requestFilter = apiProvider.ApiKey != null
+                    ? req => req.Headers.Authorization = new AuthenticationHeaderValue("Bearer", apiProvider.ApiKey)
+                    : null;
+                await heartbeatUrl.GetStringFromUrlAsync(requestFilter:requestFilter);
+            }
+
+            var apiProviderModel = apiProvider.Models.FirstOrDefault();
+            if (apiProviderModel == null)
+                return false;
+            var model = apiProviderModel.ApiModel ?? apiProviderModel.Model;
+            var request = new OpenAiChat
+            {
+                Model = model,
+                Messages = [
+                    new() { Role = "user", Content = "1+1=" },
+                ],
+                MaxTokens = 2,
+                Stream = false,
+            };
+            await ChatAsync(apiProvider, request);
+            return true;
+        }
+        catch (Exception)
+        {
+            return false;
         }
     }
 }
@@ -60,7 +103,7 @@ public class GoogleOpenAiProvider : IOpenAiProvider
         new() { Category = "HARM_CATEGORY_HARASSMENT", Threshold = "BLOCK_ONLY_HIGH" },
         new() { Category = "HARM_CATEGORY_SEXUALLY_EXPLICIT", Threshold = "BLOCK_ONLY_HIGH" },
     ];
-    
+
     public async Task<OpenAiChatResult> ChatAsync(ApiProvider apiProvider, OpenAiChat request)
     {
         if (string.IsNullOrEmpty(apiProvider.ApiKey))
@@ -136,6 +179,32 @@ public class GoogleOpenAiProvider : IOpenAiProvider
         };
         
         return new(to, durationMs);
+    }
+
+    public async Task<bool> IsOnlineAsync(ApiProvider apiProvider)
+    {
+        try
+        {
+            var apiProviderModel = apiProvider.Models.FirstOrDefault();
+            if (apiProviderModel == null)
+                return false;
+            var model = apiProviderModel.ApiModel ?? apiProviderModel.Model;
+            var request = new OpenAiChat
+            {
+                Model = model,
+                Messages = [
+                    new() { Role = "user", Content = "1+1=" },
+                ],
+                MaxTokens = 2,
+                Stream = false,
+            };
+            await ChatAsync(apiProvider, request);
+            return true;
+        }
+        catch (Exception)
+        {
+            return false;
+        }
     }
 }
 
