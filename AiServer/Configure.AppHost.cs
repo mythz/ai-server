@@ -59,23 +59,15 @@ public class AppHost() : AppHostBase("AiServer"), IHostingStartup
         
         using var db = ApplicationServices.GetRequiredService<IDbConnectionFactory>().OpenDbConnection();
         AppData.Instance.Init(db);
-        
-        /*
-        this.ModifyAppMetadata((req, meta) => {
-            meta.Plugins.Auth.AuthProviders.Insert(0, new MetaAuthProvider {
-                Name = "apikey",
-                Label = "API Key",
-                Type = "Bearer",
-                FormLayout = [
-                    new InputInfo(nameof(IHasBearerToken.BearerToken), ServiceStack.Html.Input.Types.Password) {
-                        Label = "API Key",
-                        Placeholder = "",
-                        Required = true,
-                    }
-                ]
-            });
-        });
-        */
-        
+
+        // Increase timeout on all HttpClient requests
+        var existingClientFactory = HttpUtils.CreateClient; 
+        HttpUtils.CreateClient = () =>
+        {
+            var client = existingClientFactory();
+            client.Timeout = TimeSpan.FromSeconds(180);
+            return client;
+        };
+
     }
 }
