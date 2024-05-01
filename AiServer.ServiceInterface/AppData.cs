@@ -46,10 +46,16 @@ public class AppData
         ResetInitialChatTaskId(db);
         ResetApiProviders(db);
     }
+    
+    public BlockingCollection<string> GetProviderOpenAiChatQueue(ApiProvider apiProvider)
+    {
+        var idx = Array.IndexOf(ApiProviders, apiProvider);
+        return OpenAiChatTasks[idx];
+    }
 
     public void EnqueueOpenAiChatTasks(ApiProvider apiProvider, string requestId)
     {
-        var idx = Array.IndexOf(ApiProviders, apiProvider);
-        OpenAiChatTasks[idx].Add(requestId);
+        var queue = GetProviderOpenAiChatQueue(apiProvider);
+        queue.Add(requestId);
     }
 }
