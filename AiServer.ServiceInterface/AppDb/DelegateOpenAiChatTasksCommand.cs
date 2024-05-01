@@ -1,14 +1,14 @@
-﻿using AiServer.ServiceModel.Types;
-using Microsoft.Extensions.Logging;
+﻿using Microsoft.Extensions.Logging;
 using ServiceStack;
 using ServiceStack.Data;
 using ServiceStack.Messaging;
 using ServiceStack.OrmLite;
+using AiServer.ServiceInterface.Executor;
+using AiServer.ServiceModel.Types;
 
 namespace AiServer.ServiceInterface.AppDb;
 
 public class DelegateOpenAiChatTasks {}
-
 public class DelegateOpenAiChatTasksCommand(ILogger<DelegateOpenAiChatTasksCommand> log, AppData appData, 
     IDbConnectionFactory dbFactory, IMessageProducer mq) : IAsyncCommand<DelegateOpenAiChatTasks>
 {
@@ -37,7 +37,6 @@ public class DelegateOpenAiChatTasksCommand(ILogger<DelegateOpenAiChatTasksComma
             
             while (true)
             {
-                var hasMore = false;
                 foreach (var apiProvider in appData.ActiveProviders)
                 {
                     var requestId = Guid.NewGuid().ToString("N");
@@ -51,23 +50,21 @@ public class DelegateOpenAiChatTasksCommand(ILogger<DelegateOpenAiChatTasksComma
                     DelegatedCount += pendingTasks;
                     if (pendingTasks > 0)
                     {
-                        hasMore = true;
-                        
                         log.LogDebug("{Counter} Reserved and delegating {PendingTasks} to {Provider}",
                             ++counter, pendingTasks, apiProvider.Name);
                         appData.EnqueueOpenAiChatTasks(apiProvider, requestId);
                     }
                 }
 
-                if (hasMore)
+                var hasWork = appData.OpenAiChatTasks.Any(x => x.Count > 0);
+                if (hasWork)
                 {
-                    mq.Publish(new ExecutorTasks {
-                        ExecuteOpenAiChatTasks = new()
-                    });
-                }
-                else
-                {
-                    return;
+                    if (!ExecuteOpenAiChatTasksCommand.Running)
+                    {
+                        mq.Publish(new ExecutorTasks {
+                            ExecuteOpenAiChatTasks = new()
+                        });
+                    }
                 }
             }
         }

@@ -27,7 +27,7 @@ public class AppDbPeriodicTasksCommand(ILogger<AppDbPeriodicTasksCommand> log, A
         var delegateCommand = executor.Command<DelegateOpenAiChatTasksCommand>();
         await delegateCommand.ExecuteAsync(new DelegateOpenAiChatTasks());
         log.LogInformation("Delegated {Delegated} tasks", delegateCommand.DelegatedCount);
-            
+        
         // Check if any offline providers are back online
         var offlineApiProviders = appData.ApiProviders.Where(x => x is { Enabled: true, OfflineDate: not null }).ToList();
         if (offlineApiProviders.Count > 0)
