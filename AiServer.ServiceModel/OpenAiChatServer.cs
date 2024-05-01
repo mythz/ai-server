@@ -159,3 +159,9 @@ public class WorkerStats
 
 [ValidateAuthSecret]
 public class QueryTaskSummary : QueryDb<TaskSummary> {}
+
+[ValidateAuthSecret]
+public class FirePeriodicTask : IPost, IReturn<EmptyResponse>
+{
+    public PeriodicFrequency Frequency { get; set; }
+}

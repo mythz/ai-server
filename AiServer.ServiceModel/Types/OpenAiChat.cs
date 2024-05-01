@@ -22,3 +22,16 @@ public class OpenAiChatRequest
     public string Provider { get; set; }
     public OpenAiChat Request { get; set; }
 }
+
+public class PeriodicTasks
+{
+    public PeriodicFrequency PeriodicFrequency { get; set; }
+}
+public enum PeriodicFrequency
+{
+    Frequent,
+    Hourly,
+    Daily,
+    Monthly,
+}
+

@@ -231,4 +231,16 @@ public class OpenAiChatServices(
     {
         Results = appData.ApiProviderWorkers.Select(x => x.GetStats()).ToList()
     };
+
+    public object Any(FirePeriodicTask request)
+    {
+        MessageProducer.Publish(new AppDbWrites
+        {
+            PeriodicTasks = new()
+            {
+                PeriodicFrequency = request.Frequency
+            }
+        });
+        return new EmptyResponse();
+    }
 }

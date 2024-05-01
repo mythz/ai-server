@@ -65,18 +65,6 @@ public class ExecutorTasks : IReturn<EmptyResponse>
     public PeriodicTasks? PeriodicTasks { get; set; } 
 }
 
-public class PeriodicTasks
-{
-    public PeriodicFrequency PeriodicFrequency { get; set; }
-}
-public enum PeriodicFrequency
-{
-    Frequent,
-    Hourly,
-    Daily,
-    Monthly,
-}
-
 public class BackgroundMqServices  : Service
 {
     public Task Any(AppDbWrites request) => Request.ExecuteCommandsAsync(request);
