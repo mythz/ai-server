@@ -4,6 +4,7 @@ using AiServer.ServiceModel;
 using AiServer.ServiceModel.Types;
 using ServiceStack.Auth;
 using ServiceStack.Data;
+using ServiceStack.Logging;
 using ServiceStack.OrmLite;
 
 [assembly: HostingStartup(typeof(AiServer.AppHost))]
@@ -51,6 +52,7 @@ public class AppHost() : AppHostBase("AiServer"), IHostingStartup
 
     public override void Configure()
     {
+        LogManager.LogFactory = new ConsoleLogFactory(debugEnabled: true);
         // Configure ServiceStack, Run custom logic after ASP.NET Core Startup
         var authSecret = Environment.GetEnvironmentVariable("AUTH_SECRET") ?? AppConfig.Instance.AuthSecret;
         SetConfig(new HostConfig {
