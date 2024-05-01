@@ -1,3 +1,4 @@
+using AiServer.ServiceModel;
 using Microsoft.Extensions.Logging;
 using ServiceStack;
 
@@ -12,6 +13,20 @@ public class AppDbPeriodicTasksCommand(ILogger<AppDbPeriodicTasksCommand> log, A
 
         if (request.PeriodicFrequency == PeriodicFrequency.Frequent)
         {
+            var allStats = appData.ApiProviderWorkers.Select(x => x.GetStats()).ToList();
+            var allStatsTable = Inspect.dumpTable(allStats, new TextDumpOptions {
+                Headers = [
+                    nameof(WorkerStats.Name),
+                    nameof(WorkerStats.Received),
+                    nameof(WorkerStats.Completed),
+                    nameof(WorkerStats.Retries),
+                    nameof(WorkerStats.Failed),
+                    nameof(WorkerStats.OfflineAt),
+                    nameof(WorkerStats.Running),
+                ]
+            }).Trim();
+            log.LogInformation("ApiProvider Stats:\n      {Stats}", allStatsTable);
+            
             await DoFrequentTasksAsync();
         }
     }
@@ -29,7 +44,7 @@ public class AppDbPeriodicTasksCommand(ILogger<AppDbPeriodicTasksCommand> log, A
         log.LogInformation("Delegated {Delegated} tasks", delegateCommand.DelegatedCount);
         
         // Check if any offline providers are back online
-        var offlineApiProviders = appData.ApiProviders.Where(x => x is { Enabled: true, OfflineDate: not null }).ToList();
+        var offlineApiProviders = appData.ApiProviderWorkers.Where(x => x is { Enabled:true, IsOffline:true }).ToList();
         if (offlineApiProviders.Count > 0)
         {
             log.LogInformation("Rechecking {OfflineCount} offline providers", offlineApiProviders.Count);

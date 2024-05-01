@@ -36,6 +36,9 @@ public class AppDbWrites : IReturn<EmptyResponse>
     [Command<CompleteNotificationCommand>]
     public CompleteNotification? CompleteNotification { get; set; }
     
+    [Command<FailOpenAiChatCommand>]
+    public FailOpenAiChat? FailOpenAiChat { get; set; }
+    
     [Command<ChangeProviderStatusCommand>]
     public ChangeProviderStatus? RecordOfflineProvider { get; set; }
     

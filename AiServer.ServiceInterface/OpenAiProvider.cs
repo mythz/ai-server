@@ -10,26 +10,25 @@ public record OpenAiChatResult(OpenAiChatResponse Response, int DurationMs);
 
 public interface IOpenAiProvider
 {
-    Task<bool> IsOnlineAsync(ApiProvider apiProvider);
+    Task<bool> IsOnlineAsync(IApiProviderWorker apiProvider);
 
-    Task<OpenAiChatResult> ChatAsync(ApiProvider apiProvider, OpenAiChat request);
+    Task<OpenAiChatResult> ChatAsync(IApiProviderWorker worker, OpenAiChat request);
 }
 
 public class OpenAiProvider : IOpenAiProvider
 {
     public static OpenAiProvider Instance = new();
     
-    public async Task<OpenAiChatResult> ChatAsync(ApiProvider apiProvider, OpenAiChat request)
+    public async Task<OpenAiChatResult> ChatAsync(IApiProviderWorker worker, OpenAiChat request)
     {
         var sw = Stopwatch.StartNew();
-        var openApiChatEndpoint = apiProvider.GetApiEndpointUrlFor(TaskType.OpenAiChat);
+        var openApiChatEndpoint = worker.GetApiEndpointUrlFor(TaskType.OpenAiChat);
 
-        Action<HttpRequestMessage>? requestFilter = apiProvider.ApiKey != null
-            ? req => req.Headers.Authorization = new AuthenticationHeaderValue("Bearer", apiProvider.ApiKey)
+        Action<HttpRequestMessage>? requestFilter = worker.ApiKey != null
+            ? req => req.Headers.Authorization = new AuthenticationHeaderValue("Bearer", worker.ApiKey)
             : null;
 
-        request.Model = apiProvider.GetApiModel(request.Model);
-
+        request.Model = worker.GetApiModel(request.Model);
         try
         {
             var responseJson = await openApiChatEndpoint.PostJsonToUrlAsync(request, requestFilter:requestFilter);
@@ -44,17 +43,11 @@ public class OpenAiProvider : IOpenAiProvider
         }
     }
 
-    public async Task<bool> IsOnlineAsync(ApiProvider apiProvider)
+    public async Task<bool> IsOnlineAsync(IApiProviderWorker apiProvider)
     {
         try
         {
             var heartbeatUrl = apiProvider.HeartbeatUrl;
-            if (heartbeatUrl == null)
-            {
-                heartbeatUrl = apiProvider.ApiType?.HeartbeatUrl;
-                if (heartbeatUrl != null && heartbeatUrl.StartsWith('/'))
-                    heartbeatUrl = apiProvider.ApiBaseUrl.CombineWith(heartbeatUrl);
-            }
             if (heartbeatUrl != null)
             {
                 Action<HttpRequestMessage>? requestFilter = apiProvider.ApiKey != null
@@ -63,13 +56,10 @@ public class OpenAiProvider : IOpenAiProvider
                 await heartbeatUrl.GetStringFromUrlAsync(requestFilter:requestFilter);
             }
 
-            var apiProviderModel = apiProvider.Models.FirstOrDefault();
-            if (apiProviderModel == null)
-                return false;
-            var model = apiProviderModel.ApiModel ?? apiProviderModel.Model;
+            var apiModel = apiProvider.GetPreferredApiModel();
             var request = new OpenAiChat
             {
-                Model = model,
+                Model = apiModel,
                 Messages = [
                     new() { Role = "user", Content = "1+1=" },
                 ],
@@ -104,14 +94,14 @@ public class GoogleOpenAiProvider : IOpenAiProvider
         new() { Category = "HARM_CATEGORY_SEXUALLY_EXPLICIT", Threshold = "BLOCK_ONLY_HIGH" },
     ];
 
-    public async Task<OpenAiChatResult> ChatAsync(ApiProvider apiProvider, OpenAiChat request)
+    public async Task<OpenAiChatResult> ChatAsync(IApiProviderWorker worker, OpenAiChat request)
     {
-        if (string.IsNullOrEmpty(apiProvider.ApiKey))
+        if (string.IsNullOrEmpty(worker.ApiKey))
             throw new NotSupportedException("GoogleOpenAiProvider requires an ApiKey");
 
         var sw = Stopwatch.StartNew();
-        var url = apiProvider.GetApiEndpointUrlFor(TaskType.OpenAiChat)
-            .AddQueryParam("key", apiProvider.ApiKey);
+        var url = worker.GetApiEndpointUrlFor(TaskType.OpenAiChat)
+            .AddQueryParam("key", worker.ApiKey);
         
         var generationConfig = new Dictionary<string, object> {};
         if (request.Temperature != null)
@@ -181,17 +171,14 @@ public class GoogleOpenAiProvider : IOpenAiProvider
         return new(to, durationMs);
     }
 
-    public async Task<bool> IsOnlineAsync(ApiProvider apiProvider)
+    public async Task<bool> IsOnlineAsync(IApiProviderWorker apiProvider)
     {
         try
         {
-            var apiProviderModel = apiProvider.Models.FirstOrDefault();
-            if (apiProviderModel == null)
-                return false;
-            var model = apiProviderModel.ApiModel ?? apiProviderModel.Model;
+            var apiModel = apiProvider.GetPreferredApiModel();
             var request = new OpenAiChat
             {
-                Model = model,
+                Model = apiModel,
                 Messages = [
                     new() { Role = "user", Content = "1+1=" },
                 ],
@@ -205,40 +192,5 @@ public class GoogleOpenAiProvider : IOpenAiProvider
         {
             return false;
         }
-    }
-}
-
-public static class OpenAiProviderExtensions
-{
-    public static string GetApiEndpointUrlFor(this ApiProvider apiProvider, TaskType taskType)
-    {
-        var apiBaseUrl = apiProvider.ApiBaseUrl ?? apiProvider.ApiType?.ApiBaseUrl
-            ?? throw new NotSupportedException("No ApiBaseUrl found in ApiProvider or ApiType");
-        var chatPath = apiProvider.TaskPaths?.TryGetValue(taskType, out var path) == true ? path : null;
-        if (chatPath == null)
-            apiProvider.ApiType?.TaskPaths.TryGetValue(taskType, out chatPath);
-        if (chatPath == null)
-            throw new NotSupportedException("No TaskPath found for TaskType.OpenAiChat in ApiType or ApiProvider");
-        
-        return apiBaseUrl.CombineWith(chatPath);
-    }
-
-    public static IOpenAiProvider GetOpenAiProvider(this ApiProvider apiProvider)
-    {
-        if (apiProvider.ApiType?.OpenAiProvider == nameof(GoogleOpenAiProvider))
-            return GoogleOpenAiProvider.Instance;
-        
-        return OpenAiProvider.Instance;
-    }
-
-    public static string GetApiModel(this ApiProvider apiProvider, string model)
-    {
-        var apiModel = apiProvider.Models.Find(x => x.Model == model);
-        if (apiModel?.ApiModel != null)
-            return apiModel.ApiModel;
-        
-        return apiProvider.ApiType?.ApiModels.TryGetValue(model, out var apiModelAlias) == true
-            ? apiModelAlias
-            : model;
     }
 }

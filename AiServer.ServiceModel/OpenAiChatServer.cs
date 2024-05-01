@@ -56,7 +56,7 @@ public class CompleteOpenAiChat : IPost, IReturn<EmptyResponse>
 [ValidateApiKey]
 public class FailOpenAiChat : IPost, IReturn<EmptyResponse>
 {
-    public int Id { get; set; }
+    public long Id { get; set; }
     public string Provider { get; set; }
     public int DurationMs { get; set; }
     public ResponseStatus Error { get; set; }
@@ -136,4 +136,23 @@ public class CreateApiKeyResponse
     public DateTime? ExpiryDate { get; set; }
     public DateTime? CancelledDate { get; set; }
     public string? Notes { get; set; }
+}
+
+[ValidateAuthSecret]
+public class GetApiWorkerStats : IGet, IReturn<GetApiWorkerStatsResponse> { }
+public class GetApiWorkerStatsResponse
+{
+    public List<WorkerStats> Results { get; set; }
+    public ResponseStatus? ResponseStatus { get; set; }
+}
+
+public class WorkerStats
+{
+    public string Name { get; init; }
+    public long Received { get; init; }
+    public long Completed { get; init; }
+    public long Retries { get; init; }
+    public long Failed { get; init; }
+    public DateTime? OfflineAt { get; init; }
+    public bool Running { get; init; }
 }

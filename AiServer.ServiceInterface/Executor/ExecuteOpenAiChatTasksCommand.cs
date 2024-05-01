@@ -5,12 +5,10 @@ using Microsoft.Extensions.Logging;
 using ServiceStack;
 using ServiceStack.Data;
 using ServiceStack.Messaging;
-using ServiceStack.OrmLite;
 
 namespace AiServer.ServiceInterface.Executor;
 
 public class ExecuteTasks {}
-
 public class ExecuteOpenAiChatTasksCommand(ILogger<ExecuteOpenAiChatTasksCommand> log, AppData appData, 
     IDbConnectionFactory dbFactory, IMessageProducer mq) 
     : IAsyncCommand<ExecuteTasks>
@@ -25,30 +23,28 @@ public class ExecuteOpenAiChatTasksCommand(ILogger<ExecuteOpenAiChatTasksCommand
         {
             try
             {
-                var pendingTasks = appData.OpenAiChatTasks.Sum(x => x.Count);
+                var pendingTasks = appData.ChatTasksQueuedCount();
                 while (pendingTasks > 0)
                 {
                     log.LogInformation("Executing {QueuedCount} queued OpenAI Chat Tasks...", pendingTasks);
 
                     var runningTasks = new List<Task>();
 
-                    for (int i = 0; i < appData.OpenAiChatTasks.Length; i++)
+                    foreach (var worker in appData.ActiveWorkers)
                     {
-                        var apiProvider = appData.ApiProviders[i];
-                        if (apiProvider.OfflineDate != null) continue;
+                        if (worker.IsOffline) continue;
                         
-                        var queue = appData.OpenAiChatTasks[i];
-                        if (queue.Count > 0)
+                        if (worker.ChatQueue.Count > 0)
                         {
                             log.LogInformation("{Counter} Executing {Count} OpenAI Chat Tasks for {Provider}", 
-                                ++counter, queue.Count, apiProvider.Name);
-                            runningTasks.Add(ExecuteTask(apiProvider, queue));
+                                ++counter, worker.ChatQueue.Count, worker.Name);
+                            runningTasks.Add(worker.ExecuteTasksAsync(log, dbFactory, mq));
                         }
                     }
 
                     await Task.WhenAll(runningTasks);
 
-                    pendingTasks = appData.OpenAiChatTasks.Sum(x => x.Count);
+                    pendingTasks = appData.ChatTasksQueuedCount();
                     if (pendingTasks == 0)
                     {
                         log.LogInformation("No more queued OpenAI Chat Tasks left to execute, exiting...");
@@ -66,101 +62,5 @@ public class ExecuteOpenAiChatTasksCommand(ILogger<ExecuteOpenAiChatTasksCommand
             }
         }
     }
-
-    async Task<long?> ExecuteChatApiTaskAsync(ApiProvider apiProvider, OpenAiChatTask task)
-    {
-        var chatProvider = apiProvider.GetOpenAiProvider();
-
-        var retry = 0;
-        while (retry++ < 2)
-        {
-            try
-            {
-                var (response, durationMs) = await chatProvider.ChatAsync(apiProvider , task.Request);
-
-                log.LogInformation("Completed {Provider} OpenAI Chat Task {Id} from {Request} in {Duration}ms", 
-                    apiProvider.Name, task.Id, task.RequestId, durationMs);
-
-                mq.Publish(new AppDbWrites {
-                    CompleteOpenAiChat = new()
-                    {
-                        Id = task.Id,
-                        Provider = apiProvider.Name,
-                        DurationMs = durationMs,
-                        Response = response,
-                    },
-                });
-
-                if (task.ReplyTo != null)
-                {
-                    var json = response.ToJson();
-                    mq.Publish(new NotificationTasks {
-                        NotificationRequest = new() {
-                            Url = task.ReplyTo,
-                            ContentType = MimeTypes.Json,
-                            Body = json,
-                            CompleteNotification = new() {
-                                Type = TaskType.OpenAiChat,
-                                Id = task.Id,
-                            },
-                        },
-                    });
-                }
-                return task.Id;
-            }
-            catch (Exception e)
-            {
-                log.LogError(e, "{Retry}x Error executing {TaskId} OpenAI Chat Task for {Provider}: {Message}", 
-                    retry, task.Id, apiProvider.Name, e.Message);
-                await Task.Delay(200);
-            }
-        }
-
-        if (!await chatProvider.IsOnlineAsync(apiProvider))
-        {
-            var offlineDate = DateTime.UtcNow;
-            apiProvider.OfflineDate = offlineDate;
-            log.LogError("Provider {Provider} has been taken offline", apiProvider.Name);
-            mq.Publish(new AppDbWrites {
-                RecordOfflineProvider = new() {
-                    Name = apiProvider.Name,
-                    OfflineDate = offlineDate,
-                }
-            });
-        }
-        return null;
-    }
-        
-    public async Task ExecuteTask(ApiProvider apiProvider, BlockingCollection<string> requestIds)
-    {
-        while (requestIds.Count > 0)
-        {
-            var completedTaskIds = new List<long>();
-            using var db = await dbFactory.OpenDbConnectionAsync();
-            while (apiProvider.OfflineDate == null && requestIds.TryTake(out var requestId))
-            {
-                var chatTasks = await db.SelectAsync(db.From<OpenAiChatTask>().Where(x => x.RequestId == requestId && x.CompletedDate == null && x.ErrorCode == null));
-                var concurrentTasks = chatTasks.Select(x => ExecuteChatApiTaskAsync(apiProvider, x));
-                
-                completedTaskIds.AddRange((await Task.WhenAll(concurrentTasks)).Where(x => x.HasValue).Select(x => x!.Value));
-            }
-            
-            if (apiProvider.OfflineDate != null)
-                return;
-
-            // See if there are any incomplete tasks for this provider
-            var incompleteRequestIds = await db.ColumnDistinctAsync<string>(db.From<OpenAiChatTask>()
-                .Where(x => x.RequestId != null && x.CompletedDate == null && x.ErrorCode == null && x.Worker == apiProvider.Name
-                        && !completedTaskIds.Contains(x.Id))
-                .Select(x => x.RequestId));
-            if (incompleteRequestIds.Count > 0)
-            {
-                log.LogWarning("Missed completing {Count} OpenAI Chat Tasks for {Provider}", incompleteRequestIds.Count, apiProvider.Name);
-                foreach (var requestId in incompleteRequestIds)
-                {
-                    requestIds.Add(requestId);
-                }
-            }
-        }
-    }
 }
+

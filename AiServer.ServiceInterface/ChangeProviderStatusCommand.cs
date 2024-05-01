@@ -19,8 +19,8 @@ public class ChangeProviderStatusCommand(AppData appData, IDbConnection db) : IA
             OfflineDate = request.OfflineDate,
         }, where:x => x.Name == request.Name);
         
-        var apiProvider = appData.ApiProviders.FirstOrDefault(x => x.Name == request.Name);
+        var apiProvider = appData.ApiProviderWorkers.FirstOrDefault(x => x.Name == request.Name);
         if (apiProvider != null)
-            apiProvider.OfflineDate = request.OfflineDate;
+            apiProvider.IsOffline = request.OfflineDate != null;
     }
 }

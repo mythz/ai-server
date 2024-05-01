@@ -11,7 +11,7 @@ public class OpenAiProviderTests
     [Test]
     public async Task Can_Send_Ollama_Phi3_Request()
     {
-        var response = await OpenAiProvider.Instance.ChatAsync(TestUtils.MacbookApiProvider, new OpenAiChat
+        var response = await OpenAiProvider.Instance.ChatAsync(new ApiProviderWorker(TestUtils.MacbookApiProvider), new OpenAiChat
         {
             Model = "phi3",
             Messages =
@@ -31,7 +31,7 @@ public class OpenAiProviderTests
     [Test]
     public async Task Can_Send_Google_GeminiPro_Request()
     {
-        var response = await GoogleOpenAiProvider.Instance.ChatAsync(TestUtils.GoogleApiProvider, new OpenAiChat
+        var response = await GoogleOpenAiProvider.Instance.ChatAsync(new ApiProviderWorker(TestUtils.GoogleApiProvider), new OpenAiChat
         {
             Model = "gemini-pro",
             Messages =

@@ -1,5 +1,4 @@
-﻿using System.Collections.Concurrent;
-using System.Data;
+﻿using System.Data;
 using AiServer.ServiceModel;
 using ServiceStack;
 using ServiceStack.OrmLite;
@@ -15,10 +14,10 @@ public class AppData
     public long LastChatTaskId => Interlocked.Read(ref nextChatTaskId);
     public long GetNextChatTaskId() => Interlocked.Increment(ref nextChatTaskId);
 
-    public HashSet<string> ActiveProviderModels { get; set; } = new(); 
-    public ApiProvider[] ActiveProviders { get; set; }
-    public ApiProvider[] ApiProviders { get; set; }
-    public BlockingCollection<string>[] OpenAiChatTasks { get; set; }
+    public ApiProviderWorker[] ApiProviderWorkers { get; set; } = [];
+    public ApiProvider[] ApiProviders { get; set; } = [];
+    public IEnumerable<ApiProviderWorker> ActiveWorkers => ApiProviderWorkers.Where(x => x is { Enabled: true, Concurrency: > 0 });
+    public HashSet<string> ActiveWorkerModels => ActiveWorkers.SelectMany(x => x.Models).ToSet();
 
     public void ResetInitialChatTaskId(IDbConnection db)
     {
@@ -28,16 +27,17 @@ public class AppData
 
     public void ResetApiProviders(IDbConnection db)
     {
+        foreach (var worker in ApiProviderWorkers)
+        {
+            worker.Dispose();
+        }
+        
         var apiProviders = db.LoadSelect<ApiProvider>().OrderByDescending(x => x.Priority).ThenBy(x => x.Id).ToArray();
-        var activeProviders = apiProviders.Where(x => x is { Enabled: true, Concurrency: > 0 }).ToArray();
-        var activeProviderModels = activeProviders.SelectMany(x => x.Models.Select(m => m.Model)).ToSet();
-        var openAiChatTasks = apiProviders.Select(_ => new BlockingCollection<string>()).ToArray();
+        var workers = apiProviders.Select(x => new ApiProviderWorker(x)).ToArray();
         lock (Instance)
         {
             ApiProviders = apiProviders;
-            ActiveProviders = activeProviders;
-            ActiveProviderModels = activeProviderModels;
-            OpenAiChatTasks = openAiChatTasks;
+            ApiProviderWorkers = workers;
         }
     }
 
@@ -46,16 +46,7 @@ public class AppData
         ResetInitialChatTaskId(db);
         ResetApiProviders(db);
     }
-    
-    public BlockingCollection<string> GetProviderOpenAiChatQueue(ApiProvider apiProvider)
-    {
-        var idx = Array.IndexOf(ApiProviders, apiProvider);
-        return OpenAiChatTasks[idx];
-    }
 
-    public void EnqueueOpenAiChatTasks(ApiProvider apiProvider, string requestId)
-    {
-        var queue = GetProviderOpenAiChatQueue(apiProvider);
-        queue.Add(requestId);
-    }
+    public bool HasAnyChatTasksQueued() => ActiveWorkers.Any(x => x.ChatQueue.Count > 0);
+    public int ChatTasksQueuedCount() => ActiveWorkers.Sum(x => x.ChatQueue.Count);
 }

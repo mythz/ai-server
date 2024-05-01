@@ -171,24 +171,27 @@ public class OpenAiChatServices(
     
     public object Any(GetActiveProviders request) => new GetActiveProvidersResponse
     {
-        Results = appData.ActiveProviders
+        Results = appData.ApiProviders
     };
 
     public object Any(ResetActiveProviders request)
     {
         appData.ResetApiProviders(Db);
+        MessageProducer.Publish(new AppDbWrites {
+            ResetTaskQueue = new()
+        });
         return new GetActiveProvidersResponse {
-            Results = appData.ActiveProviders
+            Results = appData.ApiProviders
         };
     }
 
     public async Task<object> Any(ChatApiProvider request)
     {
-        var apiProvider = appData.ApiProviders.FirstOrDefault(x => x.Name == request.Provider)
+        var worker = appData.ApiProviderWorkers.FirstOrDefault(x => x.Name == request.Provider)
             ?? throw HttpError.NotFound("ApiProvider not found");
         
-        var chatProvider = apiProvider.GetOpenAiProvider();
-        var response = await chatProvider.ChatAsync(apiProvider, request.Request);
+        var chatProvider = worker.GetOpenAiProvider();
+        var response = await chatProvider.ChatAsync(worker, request.Request);
         return response.Response;
     }
 
@@ -223,4 +226,9 @@ public class OpenAiChatServices(
         await feature.InsertAllAsync(Db, [apiKey]);
         return apiKey.ConvertTo<CreateApiKeyResponse>();
     }
+
+    public object Any(GetApiWorkerStats request) => new GetApiWorkerStatsResponse
+    {
+        Results = appData.ApiProviderWorkers.Select(x => x.GetStats()).ToList()
+    };
 }

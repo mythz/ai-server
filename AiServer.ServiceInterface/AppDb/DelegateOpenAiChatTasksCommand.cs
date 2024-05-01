@@ -28,7 +28,7 @@ public class DelegateOpenAiChatTasksCommand(ILogger<DelegateOpenAiChatTasksComma
         
         using var db = await dbFactory.OpenDbConnectionAsync();
         if (!await db.ExistsAsync(db.From<OpenAiChatTask>().Where(x => 
-            x.RequestId == null && x.StartedDate == null && x.CompletedDate == null && appData.ActiveProviderModels.Contains(x.Model))))
+            x.RequestId == null && x.StartedDate == null && x.CompletedDate == null && appData.ActiveWorkerModels.Contains(x.Model))))
         {
             return;
         }
@@ -39,33 +39,32 @@ public class DelegateOpenAiChatTasksCommand(ILogger<DelegateOpenAiChatTasksComma
             
             while (true)
             {
-                foreach (var apiProvider in appData.ActiveProviders)
+                foreach (var apiWorker in appData.ApiProviderWorkers)
                 {
                     // Don't assign more work to provider until their work queue is empty
-                    var providerQueue = appData.GetProviderOpenAiChatQueue(apiProvider);
-                    if (providerQueue.Count > 0)
+                    if (apiWorker.ChatQueue.Count > 0)
                         continue;
                     
                     var requestId = Guid.NewGuid().ToString("N");
-                    var models = apiProvider.Models.Select(x => x.Model).ToArray();
+                    var models = apiWorker.Models;
                     var pendingTasks = await db.ReserveNextTasksAsync(
                         requestId: requestId,
                         models: models,
-                        provider: apiProvider.Name,
-                        take: apiProvider.Concurrency);
+                        provider: apiWorker.Name,
+                        take: apiWorker.Concurrency);
 
                     DelegatedCount += pendingTasks;
                     if (pendingTasks > 0)
                     {
                         log.LogDebug("{Counter} Reserved and delegating {PendingTasks} to {Provider}",
-                            ++counter, pendingTasks, apiProvider.Name);
-                        providerQueue.Add(requestId);
+                            ++counter, pendingTasks, apiWorker.Name);
+                        apiWorker.ChatQueue.Add(requestId);
                     }
                 }
 
                 if (!ExecuteOpenAiChatTasksCommand.Running)
                 {
-                    var hasWorkQueued = appData.OpenAiChatTasks.Any(x => x.Count > 0);
+                    var hasWorkQueued = appData.HasAnyChatTasksQueued();
                     if (hasWorkQueued)
                     {
                         mq.Publish(new ExecutorTasks {
@@ -75,7 +74,7 @@ public class DelegateOpenAiChatTasksCommand(ILogger<DelegateOpenAiChatTasksComma
                 }
                 
                 var hasMoreTasksToDelegate = await db.ExistsAsync(db.From<OpenAiChatTask>()
-                    .Where(x => x.RequestId == null && x.StartedDate == null && x.CompletedDate == null && appData.ActiveProviderModels.Contains(x.Model)));
+                    .Where(x => x.RequestId == null && x.StartedDate == null && x.CompletedDate == null && appData.ActiveWorkerModels.Contains(x.Model)));
                 if (!hasMoreTasksToDelegate)
                 {
                     log.LogInformation("All OpenAI Chat Tasks have been delegated, exiting...");
