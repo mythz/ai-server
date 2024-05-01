@@ -17,16 +17,16 @@ public class OpenAiChatServices(
 {
     public async Task<object> Any(QueryCompletedChatTasks query)
     {
-        using var db = dbFactory.GetMonthDbConnection(query.Db);
-        var q = autoQuery.CreateQuery(query, base.Request, db);
-        return await autoQuery.ExecuteAsync(query, q, base.Request, db);    
+        using var dbMonth = HostContext.AppHost.GetDbConnection(query.Db ?? dbFactory.GetNamedMonthDb(DateTime.UtcNow));
+        var q = autoQuery.CreateQuery(query, base.Request, dbMonth);
+        return await autoQuery.ExecuteAsync(query, q, base.Request, dbMonth);    
     }
 
     public async Task<object> Any(QueryFailedChatTasks query)
     {
-        using var db = dbFactory.GetMonthDbConnection(query.Db);
-        var q = autoQuery.CreateQuery(query, base.Request, db);
-        return await autoQuery.ExecuteAsync(query, q, base.Request, db);    
+        using var dbMonth = HostContext.AppHost.GetDbConnection(query.Db ?? dbFactory.GetNamedMonthDb(DateTime.UtcNow));
+        var q = autoQuery.CreateQuery(query, base.Request, dbMonth);
+        return await autoQuery.ExecuteAsync(query, q, base.Request, dbMonth);    
     }
 
     public async Task<object> Any(CreateOpenAiChat request)

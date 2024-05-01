@@ -156,3 +156,6 @@ public class WorkerStats
     public DateTime? OfflineAt { get; init; }
     public bool Running { get; init; }
 }
+
+[ValidateAuthSecret]
+public class QueryTaskSummary : QueryDb<TaskSummary> {}

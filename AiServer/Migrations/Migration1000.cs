@@ -43,7 +43,7 @@ public class Migration1000 : MigrationBase
         /// Unique External Reference for the Task
         /// </summary>
         [Index(Unique = true)]
-        public string RefId { get; set; }
+        public string? RefId { get; set; }
         
         /// <summary>
         /// Number of tokens in the prompt.
@@ -68,7 +68,7 @@ public class Migration1000 : MigrationBase
         /// <summary>
         /// The Primary Key for the Task in the Month Db
         /// </summary>
-        public int DbId { get; set; }
+        public long DbId { get; set; }
     }
 
     public abstract class TaskBase : IHasLongId

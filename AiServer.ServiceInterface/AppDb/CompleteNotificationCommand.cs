@@ -42,11 +42,27 @@ public class CompleteNotificationCommand(IDbConnectionFactory dbFactory) : IAsyn
 
             var task = await db.SingleByIdAsync<OpenAiChatTask>(request.Id);
             
-            using var dbMonth = dbFactory.GetMonthDbConnection(task.CreatedDate);
+            
+            var monthDbName = dbFactory.GetNamedMonthDb(task.CreatedDate);
+            using var dbMonth = HostContext.AppHost.GetDbConnection(monthDbName);
 
             if (!failed)
             {
                 var completedTask = task.ToOpenAiChatCompleted();
+                var openAiUsage = task.Response?.Usage;
+                var promptTokens = openAiUsage?.PromptTokens ?? 0;
+                var completionTokens = openAiUsage?.CompletionTokens ?? 0;
+                await db.UpdateOnlyAsync(() => new TaskSummary {
+                    Type = TaskType.OpenAiChat,
+                    Model = task.Model,
+                    PromptTokens = promptTokens, 
+                    CompletionTokens = completionTokens,
+                    Provider = task.Provider,
+                    DurationMs = task.DurationMs,
+                    Db = monthDbName,
+                    DbId = task.Id,
+                    RefId = task.RefId,
+                }, x => x.Id == task.Id);
                 await dbMonth.InsertAsync(completedTask);
             }
             else

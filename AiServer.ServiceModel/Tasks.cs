@@ -190,7 +190,7 @@ public class TaskSummary
     /// Unique External Reference for the Task
     /// </summary>
     [Index(Unique = true)]
-    public string RefId { get; set; }
+    public string? RefId { get; set; }
     
     /// <summary>
     /// Number of tokens in the prompt.
@@ -215,7 +215,7 @@ public class TaskSummary
     /// <summary>
     /// The Primary Key for the Task in the Month Db
     /// </summary>
-    public int DbId { get; set; }
+    public long DbId { get; set; }
 }
 
 public abstract class TaskBase : IHasLongId

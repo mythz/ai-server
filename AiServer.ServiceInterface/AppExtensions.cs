@@ -16,17 +16,12 @@ public static class AppExtensions
     };
     public static string ToSystemJson<T>(this T obj) => System.Text.Json.JsonSerializer.Serialize(obj, SystemJsonOptions); 
 
-    public static string GetNamedMonthDb(string? monthDb = null) => 
-        monthDb ?? $"{DateTime.UtcNow.Year}-{DateTime.UtcNow.Month:00}";
-    
-    public static string GetNamedMonthDb(this IDbConnectionFactory dbFactory, string? monthDb = null) => 
-        GetNamedMonthDb(monthDb);
+    public static string GetNamedMonthDb(this IDbConnectionFactory dbFactory) => dbFactory.GetNamedMonthDb(DateTime.UtcNow); 
+    public static string GetNamedMonthDb(this IDbConnectionFactory dbFactory, DateTime createdDate) => 
+        $"{createdDate.Year}-{createdDate.Month:00}";
 
-    public static IDbConnection GetMonthDbConnection(this IDbConnectionFactory dbFactory, string? monthDb = null) => 
-        HostContext.AppHost.GetDbConnection(GetNamedMonthDb(monthDb));
-
-    public static IDbConnection GetMonthDbConnection(this IDbConnectionFactory dbFactory, DateTime createdDate) => 
-        HostContext.AppHost.GetDbConnection($"{createdDate.Year}-{createdDate.Month:00}");
+    public static IDbConnection GetMonthDbConnection(this IDbConnectionFactory dbFactory, DateTime? createdDate = null) => 
+        HostContext.AppHost.GetDbConnection(dbFactory.GetNamedMonthDb(createdDate ?? DateTime.UtcNow));
 
     public static EmptyResponse PublishAndReturn<T>(this IMessageProducer mq, T request)
     {

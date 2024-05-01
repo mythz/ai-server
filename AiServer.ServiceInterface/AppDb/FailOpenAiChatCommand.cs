@@ -1,15 +1,16 @@
-﻿using System.Data;
-using AiServer.ServiceModel;
+﻿using AiServer.ServiceModel;
 using AiServer.ServiceModel.Types;
 using ServiceStack;
+using ServiceStack.Data;
 using ServiceStack.OrmLite;
 
 namespace AiServer.ServiceInterface.AppDb;
 
-public class FailOpenAiChatCommand(IDbConnection db) : IAsyncCommand<FailOpenAiChat>
+public class FailOpenAiChatCommand(IDbConnectionFactory dbFactory) : IAsyncCommand<FailOpenAiChat>
 {
     public async Task ExecuteAsync(FailOpenAiChat request)
     {
+        using var db = dbFactory.OpenDbConnection(); 
         await db.UpdateAddAsync(() => new OpenAiChatTask
         {
             Provider = request.Provider,
@@ -21,7 +22,9 @@ public class FailOpenAiChatCommand(IDbConnection db) : IAsyncCommand<FailOpenAiC
         var task = await db.SingleByIdAsync<OpenAiChatTask>(request.Id);
         if (task.Retries >= 3)
         {
-            await db.InsertAsync(task.ToOpenAiChatFailed());
+            using var dbMonth = dbFactory.GetMonthDbConnection(task.CreatedDate);
+            await dbMonth.InsertAsync(task.ToOpenAiChatFailed());
+            
             await db.DeleteByIdAsync<OpenAiChatTask>(request.Id);
         }
     }
