@@ -7,6 +7,8 @@
 dist/
 App_Data/
 *.patch
+AiServer/Configure.Secrets.cs
+.env
 
 # User-specific files
 *.suo
