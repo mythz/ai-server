@@ -66,6 +66,7 @@ public class DelegateOpenAiChatTasksCommand(ILogger<DelegateOpenAiChatTasksComma
                         });
                     }
                 }
+                break;
             }
         }
         finally
