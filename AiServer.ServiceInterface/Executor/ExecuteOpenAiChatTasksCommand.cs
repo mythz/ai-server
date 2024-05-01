@@ -138,7 +138,8 @@ public class ExecuteOpenAiChatTasksCommand(ILogger<ExecuteOpenAiChatTasksCommand
 
             // See if there are any incomplete tasks from the list of processed request ids
             var incompleteRequestIds = await db.ColumnDistinctAsync<string>(db.From<OpenAiChatTask>()
-                .Where(x => x.RequestId != null && completedRequestIds.Contains(x.RequestId) && x.CompletedDate == null && x.ErrorCode == null)
+                .Where(x => x.RequestId != null && x.CompletedDate == null && x.ErrorCode == null && 
+                            (completedRequestIds.Contains(x.RequestId) || x.Worker == apiProvider.Name))
                 .Select(x => x.RequestId));
             if (incompleteRequestIds.Count > 0)
             {
