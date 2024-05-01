@@ -124,12 +124,30 @@ public class ExecuteOpenAiChatTasksCommand(ILogger<ExecuteOpenAiChatTasksCommand
         
     public async Task ExecuteTask(ApiProvider apiProvider, BlockingCollection<string> requestIds)
     {
-        using var db = await dbFactory.OpenDbConnectionAsync();
-        while (apiProvider.OfflineDate == null && requestIds.TryTake(out var requestId))
+        while (requestIds.Count > 0)
         {
-            var chatTasks = await db.SelectAsync(db.From<OpenAiChatTask>().Where(x => x.RequestId == requestId));
-            var concurrentTasks = chatTasks.Select(x => ExecuteChatApiTaskAsync(apiProvider, x));
-            await Task.WhenAll(concurrentTasks);
+            var completedRequestIds = new HashSet<string>();
+            using var db = await dbFactory.OpenDbConnectionAsync();
+            while (apiProvider.OfflineDate == null && requestIds.TryTake(out var requestId))
+            {
+                completedRequestIds.Add(requestId);
+                var chatTasks = await db.SelectAsync(db.From<OpenAiChatTask>().Where(x => x.RequestId == requestId && x.CompletedDate == null && x.ErrorCode == null));
+                var concurrentTasks = chatTasks.Select(x => ExecuteChatApiTaskAsync(apiProvider, x));
+                await Task.WhenAll(concurrentTasks);
+            }
+
+            // See if there are any incomplete tasks from the list of processed request ids
+            var incompleteRequestIds = await db.ColumnDistinctAsync<string>(db.From<OpenAiChatTask>()
+                .Where(x => x.RequestId != null && completedRequestIds.Contains(x.RequestId) && x.CompletedDate == null && x.ErrorCode == null)
+                .Select(x => x.RequestId));
+            if (incompleteRequestIds.Count > 0)
+            {
+                log.LogWarning("Missed completing {Count} OpenAI Chat Tasks for {Provider}", incompleteRequestIds.Count, apiProvider.Name);
+                foreach (var requestId in incompleteRequestIds)
+                {
+                    requestIds.Add(requestId);
+                }
+            }
         }
     }
 }
