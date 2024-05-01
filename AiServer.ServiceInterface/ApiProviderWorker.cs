@@ -179,9 +179,6 @@ public class ApiProviderWorker(ApiProvider apiProvider) : IApiProviderWorker
     {
         var chatProvider = GetOpenAiProvider();
 
-        var retry = 0;
-        while (true)
-        {
             try
             {
                 if (ShouldStopRunning())
@@ -224,41 +221,33 @@ public class ApiProviderWorker(ApiProvider apiProvider) : IApiProviderWorker
             {
                 Interlocked.Increment(ref failed);
                 
-                var shouldRetry = retry++ < 2;
-                log.LogError(e, "{Retry}x Error executing {TaskId} OpenAI Chat Task for {Provider}: {Message}", 
-                    retry, task.Id, Name, e.Message);
+                log.LogError(e, "Error executing {TaskId} OpenAI Chat Task for {Provider}: {Message}", 
+                    task.Id, Name, e.Message);
 
-                if (!shouldRetry)
+                if (!await chatProvider.IsOnlineAsync(this))
                 {
-                    if (!await chatProvider.IsOnlineAsync(this))
-                    {
-                        var offlineDate = DateTime.UtcNow;
-                        IsOffline = true;
-                        log.LogError("Provider {Name} has been taken offline", Name);
-                        mq.Publish(new AppDbWrites {
-                            RecordOfflineProvider = new() {
-                                Name = Name,
-                                OfflineDate = offlineDate,
-                            }
-                        });
-                    }
-                    else
-                    {
-                        mq.Publish(new AppDbWrites {
-                            FailOpenAiChat = new() {
-                                Id = task.Id,
-                                Provider = Name,
-                                Error = e.ToResponseStatus(),
-                            },
-                        });
-                    }
-                    return null;
+                    var offlineDate = DateTime.UtcNow;
+                    IsOffline = true;
+                    log.LogError("Provider {Name} has been taken offline", Name);
+                    mq.Publish(new AppDbWrites {
+                        RecordOfflineProvider = new() {
+                            Name = Name,
+                            OfflineDate = offlineDate,
+                        }
+                    });
                 }
-
-                Interlocked.Increment(ref retries);
-                await Task.Delay(200);
+                else
+                {
+                    mq.Publish(new AppDbWrites {
+                        FailOpenAiChat = new() {
+                            Id = task.Id,
+                            Provider = Name,
+                            Error = e.ToResponseStatus(),
+                        },
+                    });
+                }
+                return null;
             }
-        }
     }
 
     public void Dispose()

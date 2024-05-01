@@ -10,12 +10,13 @@ public class FailOpenAiChatCommand(IDbConnectionFactory dbFactory) : IAsyncComma
 {
     public async Task ExecuteAsync(FailOpenAiChat request)
     {
-        using var db = dbFactory.OpenDbConnection(); 
+        using var db = dbFactory.OpenDbConnection();
+        var error = request.Error;
         await db.UpdateAddAsync(() => new OpenAiChatTask
         {
             Provider = request.Provider,
-            ErrorCode = request.Error.ErrorCode,
-            Error = request.Error,
+            ErrorCode = error.ErrorCode,
+            Error = error,
             Retries = 1,
         }, where: x => x.Id == request.Id);
         
