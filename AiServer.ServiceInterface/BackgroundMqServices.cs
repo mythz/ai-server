@@ -26,9 +26,6 @@ public class AppDbWrites : IReturn<EmptyResponse>
     
     [Command<RequeueFailedTasksCommand>]
     public RequeueFailedTasks? RequeueFailedTasks { get; set; }
-
-    [Command<DelegateOpenAiChatTasksCommand>]
-    public DelegateOpenAiChatTasks? DelegateOpenAiChatTasks{ get; set; }
     
     [Command<CompleteOpenAiChatCommand>]
     public CompleteOpenAiChat? CompleteOpenAiChat { get; set; }
@@ -44,6 +41,14 @@ public class AppDbWrites : IReturn<EmptyResponse>
     
     [Command<AppDbPeriodicTasksCommand>]
     public PeriodicTasks? PeriodicTasks { get; set; } 
+}
+
+[Tag(Tag.Tasks)]
+[Restrict(RequestAttributes.MessageQueue), ExcludeMetadata]
+public class QueueTasks : IReturn<EmptyResponse>
+{
+    [Command<DelegateOpenAiChatTasksCommand>]
+    public DelegateOpenAiChatTasks? DelegateOpenAiChatTasks { get; set; }
 }
 
 [Tag(Tag.Tasks)]
@@ -68,6 +73,7 @@ public class ExecutorTasks : IReturn<EmptyResponse>
 public class BackgroundMqServices  : Service
 {
     public Task Any(AppDbWrites request) => Request.ExecuteCommandsAsync(request);
+    public Task Any(QueueTasks request) => Request.ExecuteCommandsAsync(request);
     public Task Any(NotificationTasks request) => Request.ExecuteCommandsAsync(request);
     public Task Any(ExecutorTasks request) => Request.ExecuteCommandsAsync(request);
 }

@@ -43,7 +43,7 @@ public class RequeueFailedTasksCommand(ILogger<RequeueFailedTasksCommand> log,
         
         log.LogInformation("Requeued {Requeued} failed tasks: {Ids}", Requeued, string.Join(", ", request.Ids));
 
-        mq.Publish(new AppDbWrites {
+        mq.Publish(new QueueTasks {
             DelegateOpenAiChatTasks = new()
         });
         mq.Publish(new ExecutorTasks {

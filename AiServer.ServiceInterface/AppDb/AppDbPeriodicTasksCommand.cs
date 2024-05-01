@@ -3,10 +3,11 @@ using ServiceStack;
 using AiServer.ServiceInterface.Executor;
 using AiServer.ServiceModel;
 using AiServer.ServiceModel.Types;
+using ServiceStack.Messaging;
 
 namespace AiServer.ServiceInterface.AppDb;
 
-public class AppDbPeriodicTasksCommand(ILogger<AppDbPeriodicTasksCommand> log, AppData appData, ICommandExecutor executor) 
+public class AppDbPeriodicTasksCommand(ILogger<AppDbPeriodicTasksCommand> log, AppData appData, IMessageProducer mq, ICommandExecutor executor) 
     : IAsyncCommand<PeriodicTasks>
 {
     public async Task ExecuteAsync(PeriodicTasks request)
@@ -44,9 +45,9 @@ public class AppDbPeriodicTasksCommand(ILogger<AppDbPeriodicTasksCommand> log, A
 
         log.LogInformation("Requeued {Requeued} incomplete tasks", requeueCommand.Requeued);
 
-        var delegateCommand = executor.Command<DelegateOpenAiChatTasksCommand>();
-        await delegateCommand.ExecuteAsync(new DelegateOpenAiChatTasks());
-        log.LogInformation("Delegated {Delegated} tasks", delegateCommand.DelegatedCount);
+        mq.Publish(new QueueTasks {
+            DelegateOpenAiChatTasks = new()
+        });
         
         // Check if any offline providers are back online
         var offlineApiProviders = appData.ApiProviderWorkers.Where(x => x is { Enabled:true, IsOffline:true }).ToList();

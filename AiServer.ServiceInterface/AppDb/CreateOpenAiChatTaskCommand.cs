@@ -31,7 +31,7 @@ public class CreateOpenAiChatTaskCommand(ILogger<CreateOpenAiChatTaskCommand> lo
         var running = DelegateOpenAiChatTasksCommand.Running;
         if (!running)
         {
-            mq.Publish(new AppDbWrites {
+            mq.Publish(new QueueTasks {
                 DelegateOpenAiChatTasks = new()
             });
         }
