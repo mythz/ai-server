@@ -1,6 +1,7 @@
 ﻿using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using ServiceStack.Messaging;
+using AiServer.ServiceModel.Types;
 
 namespace AiServer.ServiceInterface;
 

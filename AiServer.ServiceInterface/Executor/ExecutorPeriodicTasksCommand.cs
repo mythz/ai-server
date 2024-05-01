@@ -2,6 +2,7 @@ using Microsoft.Extensions.Logging;
 using ServiceStack;
 using ServiceStack.Messaging;
 using AiServer.ServiceInterface.AppDb;
+using AiServer.ServiceModel.Types;
 
 namespace AiServer.ServiceInterface.Executor;
 

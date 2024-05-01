@@ -1,7 +1,8 @@
-using AiServer.ServiceInterface.Executor;
-using AiServer.ServiceModel;
 using Microsoft.Extensions.Logging;
 using ServiceStack;
+using AiServer.ServiceInterface.Executor;
+using AiServer.ServiceModel;
+using AiServer.ServiceModel.Types;
 
 namespace AiServer.ServiceInterface.AppDb;
 
