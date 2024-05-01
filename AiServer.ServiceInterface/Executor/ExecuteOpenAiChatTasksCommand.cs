@@ -25,8 +25,11 @@ public class ExecuteOpenAiChatTasksCommand(ILogger<ExecuteOpenAiChatTasksCommand
         {
             try
             {
-                while (true)
+                var pendingTasks = appData.OpenAiChatTasks.Sum(x => x.Count);
+                while (pendingTasks > 0)
                 {
+                    log.LogInformation("Executing {QueuedCount} queued OpenAI Chat Tasks...", pendingTasks);
+
                     var runningTasks = new List<Task>();
 
                     for (int i = 0; i < appData.OpenAiChatTasks.Length; i++)
@@ -37,16 +40,20 @@ public class ExecuteOpenAiChatTasksCommand(ILogger<ExecuteOpenAiChatTasksCommand
                         var queue = appData.OpenAiChatTasks[i];
                         if (queue.Count > 0)
                         {
-                            log.LogDebug("{Counter} Executing {Count} OpenAI Chat Tasks for {Provider}", 
+                            log.LogInformation("{Counter} Executing {Count} OpenAI Chat Tasks for {Provider}", 
                                 ++counter, queue.Count, apiProvider.Name);
                             runningTasks.Add(ExecuteTask(apiProvider, queue));
                         }
                     }
 
                     await Task.WhenAll(runningTasks);
-                    
-                    if (appData.OpenAiChatTasks.All(x => x.Count == 0))
+
+                    pendingTasks = appData.OpenAiChatTasks.Sum(x => x.Count);
+                    if (pendingTasks == 0)
+                    {
+                        log.LogInformation("No more queued OpenAI Chat Tasks left to execute, exiting...");
                         break;
+                    }
                 }
             }
             catch (Exception ex)
@@ -71,7 +78,7 @@ public class ExecuteOpenAiChatTasksCommand(ILogger<ExecuteOpenAiChatTasksCommand
             {
                 var (response, durationMs) = await chatProvider.ChatAsync(apiProvider , task.Request);
 
-                log.LogDebug("Completed {Provider} OpenAI Chat Task {Id} from {Request} in {Duration}ms", 
+                log.LogInformation("Completed {Provider} OpenAI Chat Task {Id} from {Request} in {Duration}ms", 
                     apiProvider.Name, task.Id, task.RequestId, durationMs);
 
                 mq.Publish(new AppDbWrites {
