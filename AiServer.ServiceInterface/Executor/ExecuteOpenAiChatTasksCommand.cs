@@ -60,7 +60,7 @@ public class ExecuteOpenAiChatTasksCommand(ILogger<ExecuteOpenAiChatTasksCommand
         }
     }
 
-    async Task ExecuteChatApiTaskAsync(ApiProvider apiProvider, OpenAiChatTask task)
+    async Task<long?> ExecuteChatApiTaskAsync(ApiProvider apiProvider, OpenAiChatTask task)
     {
         var chatProvider = apiProvider.GetOpenAiProvider();
 
@@ -71,7 +71,8 @@ public class ExecuteOpenAiChatTasksCommand(ILogger<ExecuteOpenAiChatTasksCommand
             {
                 var (response, durationMs) = await chatProvider.ChatAsync(apiProvider , task.Request);
 
-                log.LogDebug("Completed {Provider} OpenAI Chat Task {Id} in {Duration}ms", apiProvider.Name, task.Id, durationMs);
+                log.LogDebug("Completed {Provider} OpenAI Chat Task {Id} from {Request} in {Duration}ms", 
+                    apiProvider.Name, task.Id, task.RequestId, durationMs);
 
                 mq.Publish(new AppDbWrites {
                     CompleteOpenAiChat = new()
@@ -98,7 +99,7 @@ public class ExecuteOpenAiChatTasksCommand(ILogger<ExecuteOpenAiChatTasksCommand
                         },
                     });
                 }
-                return;
+                return task.Id;
             }
             catch (Exception e)
             {
@@ -120,26 +121,30 @@ public class ExecuteOpenAiChatTasksCommand(ILogger<ExecuteOpenAiChatTasksCommand
                 }
             });
         }
+        return null;
     }
         
     public async Task ExecuteTask(ApiProvider apiProvider, BlockingCollection<string> requestIds)
     {
         while (requestIds.Count > 0)
         {
-            var completedRequestIds = new HashSet<string>();
+            var completedTaskIds = new List<long>();
             using var db = await dbFactory.OpenDbConnectionAsync();
             while (apiProvider.OfflineDate == null && requestIds.TryTake(out var requestId))
             {
-                completedRequestIds.Add(requestId);
                 var chatTasks = await db.SelectAsync(db.From<OpenAiChatTask>().Where(x => x.RequestId == requestId && x.CompletedDate == null && x.ErrorCode == null));
                 var concurrentTasks = chatTasks.Select(x => ExecuteChatApiTaskAsync(apiProvider, x));
-                await Task.WhenAll(concurrentTasks);
+                
+                completedTaskIds.AddRange((await Task.WhenAll(concurrentTasks)).Where(x => x.HasValue).Select(x => x!.Value));
             }
+            
+            if (apiProvider.OfflineDate != null)
+                return;
 
-            // See if there are any incomplete tasks from the list of processed request ids
+            // See if there are any incomplete tasks for this provider
             var incompleteRequestIds = await db.ColumnDistinctAsync<string>(db.From<OpenAiChatTask>()
-                .Where(x => x.RequestId != null && x.CompletedDate == null && x.ErrorCode == null && 
-                            (completedRequestIds.Contains(x.RequestId) || x.Worker == apiProvider.Name))
+                .Where(x => x.RequestId != null && x.CompletedDate == null && x.ErrorCode == null && x.Worker == apiProvider.Name
+                        && !completedTaskIds.Contains(x.Id))
                 .Select(x => x.RequestId));
             if (incompleteRequestIds.Count > 0)
             {
