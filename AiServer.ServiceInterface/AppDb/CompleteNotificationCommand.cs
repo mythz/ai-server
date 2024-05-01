@@ -1,5 +1,6 @@
 using AiServer.ServiceModel;
 using AiServer.ServiceModel.Types;
+using Microsoft.Extensions.Logging;
 using ServiceStack;
 using ServiceStack.Data;
 using ServiceStack.OrmLite;
@@ -14,7 +15,7 @@ public class CompleteNotification
     public ResponseStatus? Error { get; set; }
 }
 
-public class CompleteNotificationCommand(IDbConnectionFactory dbFactory) : IAsyncCommand<CompleteNotification>
+public class CompleteNotificationCommand(ILogger<CompleteNotificationCommand> log, IDbConnectionFactory dbFactory) : IAsyncCommand<CompleteNotification>
 {
     public async Task ExecuteAsync(CompleteNotification request)
     {
@@ -23,6 +24,13 @@ public class CompleteNotificationCommand(IDbConnectionFactory dbFactory) : IAsyn
         using var db = dbFactory.OpenDbConnection();
         if (request.Type == TaskType.OpenAiChat)
         {
+            var task = await db.SingleByIdAsync<OpenAiChatTask>(request.Id);
+            if (task == null)
+            {
+                log.LogWarning("Task {Id} does not exist", request.Id);
+                return;
+            }
+
             if (!failed)
             {
                 await db.UpdateOnlyAsync(() => new OpenAiChatTask
@@ -40,9 +48,6 @@ public class CompleteNotificationCommand(IDbConnectionFactory dbFactory) : IAsyn
                 }, where: x => x.Id == request.Id);
             }
 
-            var task = await db.SingleByIdAsync<OpenAiChatTask>(request.Id);
-            
-            
             var monthDbName = dbFactory.GetNamedMonthDb(task.CreatedDate);
             using var dbMonth = HostContext.AppHost.GetDbConnection(monthDbName);
 
