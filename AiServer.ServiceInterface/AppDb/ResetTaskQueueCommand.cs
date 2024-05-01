@@ -13,7 +13,7 @@ public class ResetTaskQueueCommand(IDbConnection db, IMessageProducer mq) : IAsy
     public async Task ExecuteAsync(ResetTaskQueue request)
     {
         Reset = await db.ExecuteSqlAsync(
-            "UPDATE OpenAiChatTask SET RequestId = NULL, StartedDate = NULL WHERE CompletedDate IS NULL");
+            "UPDATE OpenAiChatTask SET RequestId = NULL, StartedDate = NULL, Worker = NULL, WorkerIp = NULL WHERE CompletedDate IS NULL");
         
         mq.Publish(new AppDbWrites {
             DelegateOpenAiChatTasks = new()
