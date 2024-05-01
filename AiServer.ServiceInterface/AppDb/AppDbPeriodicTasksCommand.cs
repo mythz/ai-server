@@ -1,3 +1,4 @@
+using AiServer.ServiceInterface.Executor;
 using AiServer.ServiceModel;
 using Microsoft.Extensions.Logging;
 using ServiceStack;
@@ -15,6 +16,7 @@ public class AppDbPeriodicTasksCommand(ILogger<AppDbPeriodicTasksCommand> log, A
         {
             var allStats = appData.ApiProviderWorkers.Select(x => x.GetStats()).ToList();
             var allStatsTable = Inspect.dumpTable(allStats, new TextDumpOptions {
+                Caption = "Worker Stats",
                 Headers = [
                     nameof(WorkerStats.Name),
                     nameof(WorkerStats.Received),
@@ -24,9 +26,10 @@ public class AppDbPeriodicTasksCommand(ILogger<AppDbPeriodicTasksCommand> log, A
                     nameof(WorkerStats.OfflineAt),
                     nameof(WorkerStats.Running),
                 ],
-                Caption = "Worker Stats"
             }).Trim();
             log.LogInformation("ApiProvider:\n{Stats}", allStatsTable);
+            log.LogInformation("DelegateOpenAiChatTasks: {Running}", DelegateOpenAiChatTasksCommand.Running);
+            log.LogInformation("ExecuteOpenAiChatTasksCommand: {Running}", ExecuteOpenAiChatTasksCommand.Running);
             
             await DoFrequentTasksAsync();
         }
