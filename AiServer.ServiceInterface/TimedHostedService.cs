@@ -4,7 +4,7 @@ using ServiceStack.Messaging;
 
 namespace AiServer.ServiceInterface;
 
-public class TimedHostedService(ILogger<TimedHostedService> logger, IMessageProducer mq) : IHostedService, IDisposable
+public class TimedHostedService(ILogger<TimedHostedService> logger, IMessageService mqServer, IMessageProducer mq) : IHostedService, IDisposable
 {
     private int EverySecs = 60;
     private int executionCount = 0;
@@ -24,6 +24,8 @@ public class TimedHostedService(ILogger<TimedHostedService> logger, IMessageProd
     {
         var count = Interlocked.Increment(ref executionCount);
         logger.LogInformation("Timed Hosted Service is working. Count: {Count}", count);
+        
+        logger.LogInformation("MQ Worker running at: {Stats}\n", mqServer.GetStatsDescription());
         
         var frequentTasks = new PeriodicTasks { PeriodicFrequency = PeriodicFrequency.Frequent };
         mq.Publish(new AppDbWrites { PeriodicTasks = frequentTasks });
