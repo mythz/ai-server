@@ -23,9 +23,10 @@ public class AppDbPeriodicTasksCommand(ILogger<AppDbPeriodicTasksCommand> log, A
                     nameof(WorkerStats.Failed),
                     nameof(WorkerStats.OfflineAt),
                     nameof(WorkerStats.Running),
-                ]
+                ],
+                Caption = "Worker Stats"
             }).Trim();
-            log.LogInformation("ApiProvider Stats:\n      {Stats}", allStatsTable);
+            log.LogInformation("ApiProvider:\n{Stats}", allStatsTable);
             
             await DoFrequentTasksAsync();
         }
