@@ -14,7 +14,11 @@ public class ConfigureMq : IHostingStartup
 {
     public void Configure(IWebHostBuilder builder) => builder
         .ConfigureServices(services => {
-            services.AddSingleton<IMessageService>(c => new BackgroundMqService());
+            services.AddSingleton<IMessageService>(c => new BackgroundMqService
+            {
+                DisablePublishingToOutq = true,
+                DisablePublishingResponses = true,
+            });
             services.AddPlugin(new CommandsFeature());
             services.AddHostedService<TimedHostedService>();
         })
