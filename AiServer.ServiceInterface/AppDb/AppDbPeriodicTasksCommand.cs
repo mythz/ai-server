@@ -27,7 +27,7 @@ public class AppDbPeriodicTasksCommand(ILogger<AppDbPeriodicTasksCommand> log, A
                     nameof(WorkerStats.Running),
                 ],
             }).Trim();
-            log.LogInformation("ApiProvider:\n{Stats}", allStatsTable);
+            log.LogInformation("ApiProvider:\n{Stats}\n", allStatsTable);
             log.LogInformation("DelegateOpenAiChatTasks: {Running}", DelegateOpenAiChatTasksCommand.Running);
             log.LogInformation("ExecuteOpenAiChatTasksCommand: {Running}", ExecuteOpenAiChatTasksCommand.Running);
             

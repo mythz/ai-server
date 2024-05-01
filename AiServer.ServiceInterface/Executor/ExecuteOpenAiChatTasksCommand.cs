@@ -31,10 +31,10 @@ public class ExecuteOpenAiChatTasksCommand(ILogger<ExecuteOpenAiChatTasksCommand
                     {
                         if (worker.IsOffline) continue;
                         
-                        if (worker.ChatQueue.Count > 0)
+                        if (worker.ChatQueueCount > 0)
                         {
                             log.LogInformation("{Counter} Executing {Count} OpenAI Chat Tasks for {Provider}", 
-                                ++counter, worker.ChatQueue.Count, worker.Name);
+                                ++counter, worker.ChatQueueCount, worker.Name);
                             runningTasks.Add(worker.ExecuteTasksAsync(log, dbFactory, mq));
                         }
                     }

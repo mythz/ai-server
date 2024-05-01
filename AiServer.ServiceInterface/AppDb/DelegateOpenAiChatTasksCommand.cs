@@ -42,7 +42,7 @@ public class DelegateOpenAiChatTasksCommand(ILogger<DelegateOpenAiChatTasksComma
                 foreach (var apiWorker in appData.ApiProviderWorkers)
                 {
                     // Don't assign more work to provider until their work queue is empty
-                    if (apiWorker.ChatQueue.Count > 0)
+                    if (apiWorker.ChatQueueCount > 0)
                         continue;
                     
                     var requestId = Guid.NewGuid().ToString("N");
@@ -58,7 +58,7 @@ public class DelegateOpenAiChatTasksCommand(ILogger<DelegateOpenAiChatTasksComma
                     {
                         log.LogDebug("{Counter} Reserved and delegating {PendingTasks} to {Provider}",
                             ++counter, pendingTasks, apiWorker.Name);
-                        apiWorker.ChatQueue.Add(requestId);
+                        apiWorker.AddToChatQueue(requestId);
                     }
                 }
 

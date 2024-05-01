@@ -26,7 +26,8 @@ public class ApiProviderWorker(ApiProvider apiProvider) : IApiProviderWorker
     public string? ApiKey { get; } = apiProvider.ApiKey;
     public string? HeartbeatUrl { get; } = GetHeartbeatUrl(apiProvider);
     public bool Enabled = apiProvider.Enabled;
-    public BlockingCollection<string> ChatQueue { get; } = new();
+    public int ChatQueueCount => ChatQueue.Count;
+    private BlockingCollection<string> ChatQueue { get; } = new();
 
     private CancellationTokenSource cts = new();
 
@@ -188,6 +189,7 @@ public class ApiProviderWorker(ApiProvider apiProvider) : IApiProviderWorker
                 
                 var (response, durationMs) = await chatProvider.ChatAsync(this, task.Request);
 
+                Interlocked.Increment(ref completed);
                 log.LogInformation("Completed {Provider} OpenAI Chat Task {Id} from {Request} in {Duration}ms", 
                     Name, task.Id, task.RequestId, durationMs);
 
@@ -220,6 +222,8 @@ public class ApiProviderWorker(ApiProvider apiProvider) : IApiProviderWorker
             }
             catch (Exception e)
             {
+                Interlocked.Increment(ref failed);
+                
                 var shouldRetry = retry++ < 2;
                 log.LogError(e, "{Retry}x Error executing {TaskId} OpenAI Chat Task for {Provider}: {Message}", 
                     retry, task.Id, Name, e.Message);
@@ -241,8 +245,7 @@ public class ApiProviderWorker(ApiProvider apiProvider) : IApiProviderWorker
                     else
                     {
                         mq.Publish(new AppDbWrites {
-                            FailOpenAiChat = new()
-                            {
+                            FailOpenAiChat = new() {
                                 Id = task.Id,
                                 Provider = Name,
                                 Error = e.ToResponseStatus(),

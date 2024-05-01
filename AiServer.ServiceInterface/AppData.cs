@@ -47,6 +47,6 @@ public class AppData
         ResetApiProviders(db);
     }
 
-    public bool HasAnyChatTasksQueued() => ActiveWorkers.Any(x => x.ChatQueue.Count > 0);
-    public int ChatTasksQueuedCount() => ActiveWorkers.Sum(x => x.ChatQueue.Count);
+    public bool HasAnyChatTasksQueued() => ActiveWorkers.Any(x => x.ChatQueueCount > 0);
+    public int ChatTasksQueuedCount() => ActiveWorkers.Sum(x => x.ChatQueueCount);
 }
