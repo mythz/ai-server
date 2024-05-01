@@ -42,11 +42,11 @@ public class ReserveOpenAiChatTaskCommand(ILogger<ReserveOpenAiChatTaskCommand> 
 public static class ReserveOpenAiChatTaskCommandExtensions
 {
     public static async Task<int> ReserveNextTasksAsync(this IDbConnection db, 
-        string requestId, string[] models, string? provider=null, int take=1)
+        string requestId, string[] models, string? provider=null, int take=1, string? workerIp = null)
     {
         var startedDate = DateTime.UtcNow;
         var sql = """
-                  UPDATE OpenAiChatTask SET RequestId = @requestId, StartedDate = @startedDate
+                  UPDATE OpenAiChatTask SET RequestId = @requestId, StartedDate = @startedDate, Worker = @provider, WorkerIp = @workerIp
                   WHERE Id IN
                       (SELECT Id
                         FROM OpenAiChatTask
@@ -58,7 +58,7 @@ public static class ReserveOpenAiChatTaskCommandExtensions
                   """;
 
         var rowsUpdated = await db.ExecuteSqlAsync(sql,
-            new { requestId, startedDate, models, provider, take });
+            new { requestId, startedDate, models, provider, take, workerIp });
         return rowsUpdated;
     }
 }
