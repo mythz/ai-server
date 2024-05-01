@@ -52,7 +52,6 @@ public class AppHost() : AppHostBase("AiServer"), IHostingStartup
 
     public override void Configure()
     {
-        LogManager.LogFactory = new ConsoleLogFactory(debugEnabled: true);
         // Configure ServiceStack, Run custom logic after ASP.NET Core Startup
         var authSecret = Environment.GetEnvironmentVariable("AUTH_SECRET") ?? AppConfig.Instance.AuthSecret;
         SetConfig(new HostConfig {
