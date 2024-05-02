@@ -76,8 +76,8 @@ public class OpenAiProvider(ILogger<OpenAiProvider> log) : IOpenAiProvider
             }
             catch (HttpRequestException e)
             {
-                log.LogInformation("Response Headers: {Headers}", string.Join("; ", headers));
-                log.LogInformation("Response.Content Headers: {Headers}", string.Join("; ", contentHeaders));
+                log.LogInformation("Headers:\n{Headers}", string.Join('\n', headers));
+                log.LogInformation("Content Headers:\n{Headers}", string.Join('\n', contentHeaders));
 
                 firstEx ??= e;
                 if (e.StatusCode is null or HttpStatusCode.TooManyRequests or >= HttpStatusCode.InternalServerError)
