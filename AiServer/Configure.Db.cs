@@ -1,6 +1,6 @@
-using AiServer.ServiceModel;
 using ServiceStack.Data;
 using ServiceStack.OrmLite;
+using ServiceStack.Text;
 
 [assembly: HostingStartup(typeof(AiServer.ConfigureDb))]
 
@@ -10,6 +10,8 @@ public class ConfigureDb : IHostingStartup
 {
     public void Configure(IWebHostBuilder builder) => builder
         .ConfigureServices((context, services) => {
+            SqliteDialect.Provider.StringSerializer = new JsonStringSerializer();       
+
             var connectionString = context.Configuration.GetConnectionString("DefaultConnection")
                 ?? "DataSource=App_Data/app.db;Cache=Shared";
 
