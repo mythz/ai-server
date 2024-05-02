@@ -247,6 +247,22 @@ public class OpenAiChatServices(
         };
     }
 
+    public async Task<object> Any(UpdateApiProvider request)
+    {
+        var result = await autoQuery.PartialUpdateAsync<ApiProvider>(request, base.Request);
+        var worker = appData.ApiProviderWorkers.FirstOrDefault(x => x.Id == request.Id);
+        worker?.Update(request);
+
+        if (request.Enabled == true || request.Concurrency > 0)
+        {
+            MessageProducer.Publish(new QueueTasks {
+                DelegateOpenAiChatTasks = new()
+            });
+        }
+        
+        return result;
+    }
+
     public async Task<object> Any(CreateApiKey request)
     {
         var feature = AssertPlugin<ApiKeysFeature>();

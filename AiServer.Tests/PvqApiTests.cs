@@ -1,6 +1,7 @@
 ﻿using AiServer.ServiceModel;
 using NUnit.Framework;
 using ServiceStack;
+using ServiceStack.Text;
 
 namespace AiServer.Tests;
 
@@ -166,6 +167,121 @@ public class PvqApiTests
             ]
         },
     ];
+
+    private CreateApiProvider RunPod = new()
+    {
+        Name = "runpod-1",
+        ApiTypeId = 1,
+        ApiBaseUrl = "https://i2qjgdyzpi5cev-11434.proxy.runpod.net",
+        Concurrency = 1,
+        Priority = 0,
+        Enabled = true,
+        Models = [
+            new() { Model = "llama3:8b", },
+            new() { Model = "codellama", },
+            new() { Model = "mixtral", },
+            new() { Model = "command-r", },
+        ]
+    };
+
+    [Test]
+    public async Task Init_RunPod()
+    {
+        var baseUrl = RunPod.ApiBaseUrl;
+        var existingClientFactory = HttpUtils.CreateClient; 
+        HttpUtils.CreateClient = () =>
+        {
+            var client = existingClientFactory();
+            client.Timeout = TimeSpan.FromSeconds(600);
+            return client;
+        };
+
+        var res = (Dictionary<string,object>) JSON.parse(await baseUrl.CombineWith("/api/tags").GetStringFromUrlAsync());
+        var models = ((List<object>)res["models"]).Cast<string>();
+        
+        var missingModels = RunPod.Models.Map(x => x.Model).Except(models).ToList();
+        foreach (var model in missingModels)
+        {
+            var requestBody = JSON.stringify(new { name = model });
+            "Pulling Model: {0}...".Print(model);
+
+            var stream = await baseUrl.CombineWith($"/api/pull")
+                .SendStreamToUrlAsync(requestBody:new MemoryStream(requestBody.ToUtf8Bytes()));
+
+            await using var outStream = Console.OpenStandardOutput();
+            await stream.CopyToAsync(outStream);
+        }
+    }
+
+    [Test]
+    public async Task Update_local_RunPod()
+    {
+        var client = TestUtils.CreateAuthSecretClient();
+        await UpdateRunPod(client);
+    }
+
+    [Test]
+    public async Task Update_public_RunPod()
+    {
+        var client = TestUtils.CreatePublicAuthSecretClient();
+        await UpdateRunPod(client);
+    }
+
+    private async Task UpdateRunPod(JsonApiClient client)
+    {
+        var apiQuery = await client.ApiAsync(new QueryApiProviders
+        {
+            Name = RunPod.Name,
+        });
+        apiQuery.ThrowIfError();
+        var existingRunpod = apiQuery.Response!.Results.FirstOrDefault();
+        if (existingRunpod == null)
+            throw new Exception("RunPod not found");
+        
+        apiQuery.Response.PrintDump();
+        
+        var api = await client.ApiAsync(new UpdateApiProvider
+        {
+            Id = existingRunpod.Id,
+            Enabled = RunPod.Enabled,
+            Priority = RunPod.Priority,
+            Concurrency = RunPod.Concurrency,
+            ApiBaseUrl = RunPod.ApiBaseUrl,
+            HeartbeatUrl = RunPod.HeartbeatUrl,
+            ApiKey = RunPod.ApiKey,
+        });
+        api.ThrowIfError();
+    }
+
+    [Test]
+    public async Task Create_RunPod()
+    {
+        var client = TestUtils.CreatePublicAuthSecretClient();
+        var api = await client.ApiAsync(RunPod);
+        api.ThrowIfError();
+    }
+
+    [Test]
+    public async Task RunPod_Offline()
+    {
+        var client = TestUtils.CreatePublicAuthSecretClient();
+        var api = await client.ApiAsync(new ChangeApiProviderStatus {
+            Provider = RunPod.Name,
+            Online = false,
+        });
+        api.ThrowIfError();
+    }
+
+    [Test]
+    public async Task RunPod_Online()
+    {
+        var client = TestUtils.CreatePublicAuthSecretClient();
+        var api = await client.ApiAsync(new ChangeApiProviderStatus {
+            Provider = RunPod.Name,
+            Online = true,
+        });
+        api.ThrowIfError();
+    }
 
     private static async Task CreateApiKeysAndAuthProviders(JsonApiClient client)
     {

@@ -122,6 +122,18 @@ public class ChangeApiProviderStatus : IPost, IReturn<StringResponse>
 }
 
 [ValidateAuthSecret]
+public class UpdateApiProvider : IPatchDb<ApiProvider>, IReturn<IdResponse>
+{
+    public int Id { get; set; }
+    public string? ApiKey { get; set; }
+    public string? ApiBaseUrl { get; set; }
+    public string? HeartbeatUrl { get; set; }
+    public int? Concurrency { get; set; }
+    public int? Priority { get; set; }
+    public bool? Enabled { get; set; }
+}
+
+[ValidateAuthSecret]
 public class CreateApiKey : IPost, IReturn<CreateApiKeyResponse>
 {
     public string Id { get; set; }

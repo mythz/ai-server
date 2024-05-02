@@ -20,15 +20,18 @@ public interface IApiProviderWorker : IDisposable
 
 public class ApiProviderWorker(ApiProvider apiProvider, AiProviderFactory aiFactory) : IApiProviderWorker
 {
+    public int Id = apiProvider.Id;
     public string Name = apiProvider.Name;
     public string[] Models = apiProvider.Models.Select(x => x.Model).ToArray();
-    public int Concurrency = apiProvider.Concurrency;
-    public string? ApiKey { get; } = apiProvider.ApiKey;
-    public string? HeartbeatUrl { get; } = GetHeartbeatUrl(apiProvider);
-    public bool Enabled = apiProvider.Enabled;
-    public int ChatQueueCount => ChatQueue.Count;
-    private BlockingCollection<string> ChatQueue { get; } = new();
 
+    // Can be modified at runtime
+    public int Concurrency => apiProvider.Concurrency;
+    public string? ApiKey => apiProvider.ApiKey;
+    public string? HeartbeatUrl => GetHeartbeatUrl(apiProvider);
+    public bool Enabled => apiProvider.Enabled;
+    public int ChatQueueCount => ChatQueue.Count;
+    
+    private BlockingCollection<string> ChatQueue { get; } = new();
     private CancellationTokenSource cts = new();
 
     private bool isDisposed;
@@ -38,6 +41,22 @@ public class ApiProviderWorker(ApiProvider apiProvider, AiProviderFactory aiFact
     private long failed = 0;
     private long running = 0;
     public bool IsRunning => Interlocked.Read(ref running) > 0;
+
+    public void Update(UpdateApiProvider request)
+    {
+        if (request.ApiKey != null)
+            apiProvider.ApiKey = request.ApiKey;
+        if (request.ApiBaseUrl != null)
+            apiProvider.ApiBaseUrl = request.ApiBaseUrl;
+        if (request.HeartbeatUrl != null)
+            apiProvider.HeartbeatUrl = request.HeartbeatUrl;
+        if (request.Concurrency != null)
+            apiProvider.Concurrency = request.Concurrency.Value;
+        if (request.Priority != null)
+            apiProvider.Priority = request.Priority.Value;
+        if (request.Enabled != null)
+            apiProvider.Enabled = request.Enabled.Value;
+    }
 
     public bool IsOffline
     {

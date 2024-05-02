@@ -5,7 +5,10 @@ namespace AiServer.ServiceModel;
 
 [ValidateApiKey]
 [Description("API Providers that can process AI Tasks")]
-public class QueryApiProviders : QueryDb<ApiProvider> {}
+public class QueryApiProviders : QueryDb<ApiProvider>
+{
+    public string? Name { get; set; }
+}
 
 [ValidateAuthSecret]
 [Description("Create an API Provider that can process AI Tasks")]
@@ -27,6 +30,9 @@ public class CreateApiProvider : ICreateDb<ApiProvider>, IReturn<IdResponse>
     
     [Description("The Base URL for the API Provider")]
     public string? ApiBaseUrl { get; set; }
+
+    [Description("The URL to check if the API Provider is still online")]
+    public string? HeartbeatUrl { get; set; }
     
     [Description("Override API Paths for different AI Tasks")]
     public Dictionary<TaskType, string>? TaskPaths { get; set; }
