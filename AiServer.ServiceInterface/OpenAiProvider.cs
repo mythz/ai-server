@@ -1,6 +1,8 @@
 ﻿using System.Diagnostics;
+using System.Net;
 using System.Net.Http.Headers;
 using AiServer.ServiceModel;
+using Microsoft.Extensions.Logging;
 using ServiceStack;
 using ServiceStack.Text;
 
@@ -15,10 +17,20 @@ public interface IOpenAiProvider
     Task<OpenAiChatResult> ChatAsync(IApiProviderWorker worker, OpenAiChat request);
 }
 
-public class OpenAiProvider : IOpenAiProvider
+public class AiProviderFactory(OpenAiProvider openAiProvider, GoogleOpenAiProvider googleProvider)
 {
-    public static OpenAiProvider Instance = new();
+    public static AiProviderFactory Instance { get; set; }
     
+    public IOpenAiProvider GetOpenAiProvider(string? type = null)
+    {
+        return type == nameof(GoogleOpenAiProvider)
+            ? googleProvider
+            : openAiProvider;
+    }
+}
+
+public class OpenAiProvider(ILogger<OpenAiProvider> log) : IOpenAiProvider
+{
     public async Task<OpenAiChatResult> ChatAsync(IApiProviderWorker worker, OpenAiChat request)
     {
         var sw = Stopwatch.StartNew();
@@ -29,18 +41,40 @@ public class OpenAiProvider : IOpenAiProvider
             : null;
 
         request.Model = worker.GetApiModel(request.Model);
-        try
+        Exception? firstEx = null;
+
+        var retries = 0;
+        while (retries++ < 10)
         {
-            var responseJson = await openApiChatEndpoint.PostJsonToUrlAsync(request, requestFilter:requestFilter);
-            var durationMs = (int)sw.ElapsedMilliseconds;
-            var response = responseJson.FromJson<OpenAiChatResponse>();
-            return new(response, durationMs);
+            var sleepMs = 1000 * retries;
+            try
+            {
+                var responseJson = await openApiChatEndpoint.PostJsonToUrlAsync(request, 
+                    requestFilter:requestFilter,
+                    responseFilter: res =>
+                    {
+                        // GROQ
+                        if (res.Headers.TryGetValues("retry-after", out var retryAfterValues) && int.TryParse(retryAfterValues.ToString(), out var retryAfter))
+                        {
+                            sleepMs = retryAfter * 1000;
+                        }
+                    });
+                var durationMs = (int)sw.ElapsedMilliseconds;
+                var response = responseJson.FromJson<OpenAiChatResponse>();
+                return new(response, durationMs);
+            }
+            catch (HttpRequestException e)
+            {
+                firstEx ??= e;
+                if (e.StatusCode is null or HttpStatusCode.TooManyRequests or >= HttpStatusCode.InternalServerError)
+                {
+                    log.LogInformation("{Message}, retrying after {SleepMs}ms", e.Message, sleepMs);
+                    await Task.Delay(sleepMs);
+                }
+                else throw;
+            }
         }
-        catch (Exception e)
-        {
-            Console.WriteLine(e);
-            throw;
-        }
+        throw firstEx ?? new Exception($"Failed to complete OpenAI Chat request after {retries} retries");
     }
 
     public async Task<bool> IsOnlineAsync(IApiProviderWorker apiProvider)
@@ -82,10 +116,8 @@ public class GoogleSafetySetting
     public string Threshold { get; set; }
 }
 
-public class GoogleOpenAiProvider : IOpenAiProvider
+public class GoogleOpenAiProvider(ILogger<GoogleOpenAiProvider> log) : IOpenAiProvider
 {
-    public static GoogleOpenAiProvider Instance = new();
-
     public List<GoogleSafetySetting> SafetySettings { get; set; } =
     [
         new() { Category = "HARM_CATEGORY_DANGEROUS_CONTENT", Threshold = "BLOCK_ONLY_HIGH" },

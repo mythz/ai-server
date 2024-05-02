@@ -13,6 +13,7 @@ public class AppData
     public void SetInitialChatTaskId(long initialValue) => this.nextChatTaskId = initialValue;
     public long LastChatTaskId => Interlocked.Read(ref nextChatTaskId);
     public long GetNextChatTaskId() => Interlocked.Increment(ref nextChatTaskId);
+    private AiProviderFactory AiFactory { get; set; }
 
     public ApiProviderWorker[] ApiProviderWorkers { get; set; } = [];
     public ApiProvider[] ApiProviders { get; set; } = [];
@@ -33,7 +34,7 @@ public class AppData
         }
         
         var apiProviders = db.LoadSelect<ApiProvider>().OrderByDescending(x => x.Priority).ThenBy(x => x.Id).ToArray();
-        var workers = apiProviders.Select(x => new ApiProviderWorker(x)).ToArray();
+        var workers = apiProviders.Select(x => new ApiProviderWorker(x, AiFactory)).ToArray();
         lock (Instance)
         {
             ApiProviders = apiProviders;
@@ -41,8 +42,9 @@ public class AppData
         }
     }
 
-    public void Init(IDbConnection db)
+    public void Init(AiProviderFactory aiFactory, IDbConnection db)
     {
+        AiFactory = aiFactory;
         ResetInitialChatTaskId(db);
         ResetApiProviders(db);
     }

@@ -1,10 +1,7 @@
 using System.Data;
 using AiServer.ServiceInterface;
-using AiServer.ServiceModel;
 using AiServer.ServiceModel.Types;
-using ServiceStack.Auth;
 using ServiceStack.Data;
-using ServiceStack.Logging;
 using ServiceStack.OrmLite;
 
 [assembly: HostingStartup(typeof(AiServer.AppHost))]
@@ -19,6 +16,10 @@ public class AppHost() : AppHostBase("AiServer"), IHostingStartup
             context.Configuration.GetSection(nameof(AppConfig)).Bind(AppConfig.Instance);
             services.AddSingleton(AppConfig.Instance);
             services.AddSingleton(AppData.Instance);
+            
+            services.AddSingleton<OpenAiProvider>();
+            services.AddSingleton<GoogleOpenAiProvider>();
+            services.AddSingleton<AiProviderFactory>();
         });
 
     public override IDbConnection GetDbConnection(string? namedConnection)
@@ -58,8 +59,9 @@ public class AppHost() : AppHostBase("AiServer"), IHostingStartup
             AdminAuthSecret = authSecret,
         });
         
+        AiProviderFactory.Instance = ApplicationServices.GetRequiredService<AiProviderFactory>();
         using var db = ApplicationServices.GetRequiredService<IDbConnectionFactory>().OpenDbConnection();
-        AppData.Instance.Init(db);
+        AppData.Instance.Init(AiProviderFactory.Instance, db);
 
         // Increase timeout on all HttpClient requests
         var existingClientFactory = HttpUtils.CreateClient; 
