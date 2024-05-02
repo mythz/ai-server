@@ -28,7 +28,7 @@ public class Migration1000 : MigrationBase
         /// The type of Task
         /// </summary>
         public TaskType Type { get; set; }
-        
+    
         /// <summary>
         /// The model to use for the Task
         /// </summary>
@@ -49,12 +49,12 @@ public class Migration1000 : MigrationBase
         /// Optional Tag to group related Tasks
         /// </summary>
         public string? Tag { get; set; }
-        
+    
         /// <summary>
         /// Number of tokens in the prompt.
         /// </summary>
         public int PromptTokens { get; set; }
-        
+    
         /// <summary>
         /// Number of tokens in the generated completion.
         /// </summary>
@@ -68,12 +68,7 @@ public class Migration1000 : MigrationBase
         /// <summary>
         /// The Month DB the Task was created in
         /// </summary>
-        public string Db { get; set; }
-        
-        /// <summary>
-        /// The Primary Key for the Task in the Month Db
-        /// </summary>
-        public long DbId { get; set; }
+        public DateTime CreatedDate { get; set; }
     }
 
     public abstract class TaskBase : IHasLongId
