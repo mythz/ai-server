@@ -93,7 +93,10 @@ public class ChatApiProvider : IPost, IReturn<OpenAiChatResponse>
 {
     public string Provider { get; set; }
     public string Model { get; set; }
-    public OpenAiChat Request { get; set; }
+    public OpenAiChat? Request { get; set; }
+    
+    [Input(Type = "textarea"), FieldCss(Field = "col-span-12 text-center")]
+    public string? Prompt { get; set; }
 }
 
 [ValidateAuthSecret]

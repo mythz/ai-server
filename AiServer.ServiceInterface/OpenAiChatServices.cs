@@ -200,9 +200,26 @@ public class OpenAiChatServices(
     {
         var worker = appData.ApiProviderWorkers.FirstOrDefault(x => x.Name == request.Provider)
             ?? throw HttpError.NotFound("ApiProvider not found");
+
+        var openAiRequest = request.Request;
+        if (openAiRequest == null)
+        {
+            if (string.IsNullOrEmpty(request.Prompt))
+                throw new ArgumentNullException(nameof(request.Prompt));
+            
+            openAiRequest = new OpenAiChat
+            {
+                Model = request.Model,
+                Messages = [
+                    new() { Role = "user", Content = request.Prompt },
+                ],
+                MaxTokens = 512,
+                Stream = false,
+            };
+        }
         
         var chatProvider = worker.GetOpenAiProvider();
-        var response = await chatProvider.ChatAsync(worker, request.Request);
+        var response = await chatProvider.ChatAsync(worker, openAiRequest);
         return response.Response;
     }
 
