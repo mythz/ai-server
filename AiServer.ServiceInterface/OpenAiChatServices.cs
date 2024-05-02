@@ -136,6 +136,17 @@ public class OpenAiChatServices(
             ResetTaskQueue = request.ResetTaskQueue == true
                 ? new()
                 : null,
+        });
+        
+        return new EmptyResponse();
+    }
+
+    public object Any(OpenAiChatFailedTasks request)
+    {
+        mq.Publish(new AppDbWrites {
+            ResetFailedTasks = request.ResetErrorState == true
+                ? new()
+                : null,
             RequeueFailedTasks = request.RequeueFailedTaskIds is { Count: > 0 }
                 ? new() { Ids = request.RequeueFailedTaskIds }
                 : null,

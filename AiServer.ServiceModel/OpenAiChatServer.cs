@@ -101,6 +101,12 @@ public class OpenAiChatOperations : IPost, IReturn<EmptyResponse>
 {
     public bool? ResetTaskQueue { get; set; }
     public bool? RequeueIncompleteTasks { get; set; }
+}
+
+[ValidateAuthSecret]
+public class OpenAiChatFailedTasks : IPost, IReturn<EmptyResponse>
+{
+    public bool? ResetErrorState { get; set; }
     [Input(Type = "tag")]
     public List<long>? RequeueFailedTaskIds { get; set; }
 }

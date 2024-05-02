@@ -7,17 +7,12 @@ using ServiceStack.OrmLite;
 
 namespace AiServer.ServiceInterface.AppDb;
 
-public class RequeueFailedTasks
-{
-    public List<long> Ids { get; set; }
-}
-
 public class RequeueFailedTasksCommand(ILogger<RequeueFailedTasksCommand> log, 
-    IDbConnectionFactory dbFactory, IMessageProducer mq) : IAsyncCommand<RequeueFailedTasks>
+    IDbConnectionFactory dbFactory, IMessageProducer mq) : IAsyncCommand<SelectedTasks>
 {
     public long Requeued { get; set; }
     
-    public async Task ExecuteAsync(RequeueFailedTasks request)
+    public async Task ExecuteAsync(SelectedTasks request)
     {
         using var monthDb = dbFactory.GetMonthDbConnection();
         var failedTasks = await monthDb.SelectAsync(monthDb.From<OpenAiChatFailed>().Where(x => request.Ids.Contains(x.Id)));
@@ -38,8 +33,6 @@ public class RequeueFailedTasksCommand(ILogger<RequeueFailedTasksCommand> log,
         
         using var db = dbFactory.OpenDbConnection();
         await db.InsertAllAsync(requeuedTasks);
-        Requeued += await db.ExecuteSqlAsync(
-            "UPDATE OpenAiChatTask SET RequestId = NULL, StartedDate = NULL, Worker = NULL, WorkerIp = NULL, ErrorCode = NULL, Error = NULL, Retries = 0 WHERE CompletedDate IS NULL");
 
         await monthDb.DeleteAsync(monthDb.From<OpenAiChatFailed>().Where(x => request.Ids.Contains(x.Id)));
         

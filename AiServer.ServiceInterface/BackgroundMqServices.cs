@@ -24,8 +24,11 @@ public class AppDbWrites : IReturn<EmptyResponse>
     [Command<ResetTaskQueueCommand>]
     public ResetTaskQueue? ResetTaskQueue { get; set; }
     
+    [Command<ResetFailedTasksCommand>]
+    public SelectedTasks? ResetFailedTasks { get; set; }
+    
     [Command<RequeueFailedTasksCommand>]
-    public RequeueFailedTasks? RequeueFailedTasks { get; set; }
+    public SelectedTasks? RequeueFailedTasks { get; set; }
     
     [Command<CompleteOpenAiChatCommand>]
     public CompleteOpenAiChat? CompleteOpenAiChat { get; set; }
@@ -68,6 +71,11 @@ public class ExecutorTasks : IReturn<EmptyResponse>
     
     [Command<ExecutorPeriodicTasksCommand>]
     public PeriodicTasks? PeriodicTasks { get; set; } 
+}
+
+public class SelectedTasks
+{
+    public List<long> Ids { get; set; }
 }
 
 public class BackgroundMqServices  : Service
