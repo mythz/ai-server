@@ -46,6 +46,7 @@ public class OpenAiProvider(ILogger<OpenAiProvider> log) : IOpenAiProvider
         var retries = 0;
         while (retries++ < 10)
         {
+            int retryAfter = 0;
             var sleepMs = 1000 * retries;
             try
             {
@@ -54,9 +55,9 @@ public class OpenAiProvider(ILogger<OpenAiProvider> log) : IOpenAiProvider
                     responseFilter: res =>
                     {
                         // GROQ
-                        if (res.Headers.TryGetValues("retry-after", out var retryAfterValues) && int.TryParse(retryAfterValues.ToString(), out var retryAfter))
+                        if (res.Headers.TryGetValues("retry-after", out var retryAfterValues))
                         {
-                            sleepMs = retryAfter * 1000;
+                            int.TryParse(retryAfterValues.ToString(), out retryAfter);
                         }
                     });
                 var durationMs = (int)sw.ElapsedMilliseconds;
@@ -68,6 +69,8 @@ public class OpenAiProvider(ILogger<OpenAiProvider> log) : IOpenAiProvider
                 firstEx ??= e;
                 if (e.StatusCode is null or HttpStatusCode.TooManyRequests or >= HttpStatusCode.InternalServerError)
                 {
+                    if (retryAfter > 0)
+                        sleepMs = retryAfter * 1000;
                     log.LogInformation("{Message}, retrying after {SleepMs}ms", e.Message, sleepMs);
                     await Task.Delay(sleepMs);
                 }
