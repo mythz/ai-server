@@ -26,7 +26,8 @@ public class TimedHostedService(ILogger<TimedHostedService> logger, IMessageServ
         var count = Interlocked.Increment(ref executionCount);
         logger.LogInformation("Timed Hosted Service is working. Count: {Count}", count);
         
-        logger.LogInformation("MQ Worker running at: {Stats}\n", mqServer.GetStatsDescription());
+        if (logger.IsEnabled(LogLevel.Debug))
+            logger.LogInformation("MQ Worker running at: {Stats}\n", mqServer.GetStatsDescription());
         
         var frequentTasks = new PeriodicTasks { PeriodicFrequency = PeriodicFrequency.Frequent };
         using var mq = mqServer.MessageFactory.CreateMessageProducer();
