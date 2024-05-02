@@ -52,6 +52,11 @@ public class TaskSummary
     public string? RefId { get; set; }
     
     /// <summary>
+    /// Optional Tag to group related Tasks
+    /// </summary>
+    public string? Tag { get; set; }
+    
+    /// <summary>
     /// Number of tokens in the prompt.
     /// </summary>
     public int PromptTokens { get; set; }
@@ -69,12 +74,7 @@ public class TaskSummary
     /// <summary>
     /// The Month DB the Task was created in
     /// </summary>
-    public string Db { get; set; }
-    
-    /// <summary>
-    /// The Primary Key for the Task in the Month Db
-    /// </summary>
-    public long DbId { get; set; }
+    public DateTime CreatedDate { get; set; }
 }
 
 public abstract class TaskBase : IHasLongId
@@ -100,6 +100,11 @@ public abstract class TaskBase : IHasLongId
     /// </summary>
     [Index(Unique = true)]
     public virtual string? RefId { get; set; }
+    
+    /// <summary>
+    /// Optional Tag to group related Tasks
+    /// </summary>
+    public string? Tag { get; set; }
     
     /// <summary>
     /// URL to publish the Task to

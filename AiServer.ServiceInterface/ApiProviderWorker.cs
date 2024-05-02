@@ -11,6 +11,7 @@ namespace AiServer.ServiceInterface;
 
 public interface IApiProviderWorker : IDisposable
 {
+    string Name { get; }
     string? ApiKey { get; }
     string? HeartbeatUrl { get; }
     string GetApiEndpointUrlFor(TaskType taskType);
@@ -20,8 +21,8 @@ public interface IApiProviderWorker : IDisposable
 
 public class ApiProviderWorker(ApiProvider apiProvider, AiProviderFactory aiFactory) : IApiProviderWorker
 {
-    public int Id = apiProvider.Id;
-    public string Name = apiProvider.Name;
+    public int Id => apiProvider.Id;
+    public string Name => apiProvider.Name;
     public string[] Models = apiProvider.Models.Select(x => x.Model).ToArray();
 
     // Can be modified at runtime
@@ -88,12 +89,12 @@ public class ApiProviderWorker(ApiProvider apiProvider, AiProviderFactory aiFact
     public string GetApiEndpointUrlFor(TaskType taskType)
     {
         var apiBaseUrl = apiProvider.ApiBaseUrl ?? apiProvider.ApiType?.ApiBaseUrl
-            ?? throw new NotSupportedException("No ApiBaseUrl found in ApiProvider or ApiType");
+            ?? throw new NotSupportedException($"[{Name}] No ApiBaseUrl found in ApiProvider or ApiType");
         var chatPath = apiProvider.TaskPaths?.TryGetValue(taskType, out var path) == true ? path : null;
         if (chatPath == null)
             apiProvider.ApiType?.TaskPaths.TryGetValue(taskType, out chatPath);
         if (chatPath == null)
-            throw new NotSupportedException("No TaskPath found for TaskType.OpenAiChat in ApiType or ApiProvider");
+            throw new NotSupportedException($"[{Name}] TaskPath found for TaskType.OpenAiChat in ApiType or ApiProvider");
 
         return apiBaseUrl.CombineWith(chatPath);
     }
@@ -144,7 +145,7 @@ public class ApiProviderWorker(ApiProvider apiProvider, AiProviderFactory aiFact
 
         if (Interlocked.CompareExchange(ref running, 1, 0) != 0)
         {
-            log.LogInformation("{Provider} is already running...", Name);
+            log.LogInformation("[{Name}] already running...", Name);
             return;
         }
 
@@ -181,8 +182,8 @@ public class ApiProviderWorker(ApiProvider apiProvider, AiProviderFactory aiFact
                     .Select(x => x.RequestId));
                 if (incompleteRequestIds.Count > 0)
                 {
-                    log.LogWarning("Missed completing {Count} OpenAI Chat Tasks for {Provider}",
-                        incompleteRequestIds.Count, Name);
+                    log.LogWarning("[{Name}] Missed completing {Count} OpenAI Chat Tasks",
+                        Name, incompleteRequestIds.Count);
                     foreach (var requestId in incompleteRequestIds)
                     {
                         ChatQueue.Add(requestId);
@@ -192,7 +193,7 @@ public class ApiProviderWorker(ApiProvider apiProvider, AiProviderFactory aiFact
                 if (ChatQueue.Count == 0)
                 {
                     completedTaskIds.Clear();
-                    log.LogInformation("{Provider} has processed all its tasks, requesting new tasks...", Name);
+                    log.LogInformation("[{Name}] processed all its tasks, requesting new tasks...", Name);
                     mq.Publish(new AppDbWrites
                     {
                         RequestOpenAiChatTasks = new()
@@ -223,7 +224,7 @@ public class ApiProviderWorker(ApiProvider apiProvider, AiProviderFactory aiFact
             var (response, durationMs) = await chatProvider.ChatAsync(this, task.Request);
 
             Interlocked.Increment(ref completed);
-            log.LogInformation("Completed {Provider} OpenAI Chat Task {Id} from {Request} in {Duration}ms",
+            log.LogInformation("[{Name}] Completed OpenAI Chat Task {Id} from {Request} in {Duration}ms",
                 Name, task.Id, task.RequestId, durationMs);
 
             mq.Publish(new AppDbWrites
@@ -262,14 +263,14 @@ public class ApiProviderWorker(ApiProvider apiProvider, AiProviderFactory aiFact
         {
             Interlocked.Increment(ref failed);
 
-            log.LogError(e, "Error executing {TaskId} OpenAI Chat Task for {Provider}: {Message}",
-                task.Id, Name, e.Message);
+            log.LogError(e, "[{Name}] Error executing {TaskId} OpenAI Chat Task: {Message}",
+                Name, task.Id, e.Message);
 
             if (!await chatProvider.IsOnlineAsync(this))
             {
                 var offlineDate = DateTime.UtcNow;
                 IsOffline = true;
-                log.LogError("Provider {Name} has been taken offline", Name);
+                log.LogError("[{Name}] has been taken offline", Name);
                 mq.Publish(new AppDbWrites
                 {
                     RecordOfflineProvider = new()

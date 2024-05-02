@@ -11,11 +11,24 @@ public class QueryOpenAiChat : QueryDb<OpenAiChatTask>
 }
 
 [ValidateApiKey]
+public class GetOpenAiChat : IGet, IReturn<GetOpenAiChatResponse>
+{
+    public int? Id { get; set; }
+    public string? RefId { get; set; }
+}
+public class GetOpenAiChatResponse
+{
+    public OpenAiChatTask? Result { get; set; }
+    public ResponseStatus? ResponseStatus { get; set; }
+}
+
+[ValidateApiKey]
 public class CreateOpenAiChat : ICreateDb<OpenAiChatTask>, IReturn<CreateOpenAiChatResponse>
 {
     public string? RefId { get; set; }
     public string? Provider { get; set; }
     public string? ReplyTo { get; set; }
+    public string? Tag { get; set; }
     public OpenAiChat Request { get; set; }
 }
 public class CreateOpenAiChatResponse

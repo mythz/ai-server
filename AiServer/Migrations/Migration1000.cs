@@ -44,6 +44,11 @@ public class Migration1000 : MigrationBase
         /// </summary>
         [Index(Unique = true)]
         public string? RefId { get; set; }
+    
+        /// <summary>
+        /// Optional Tag to group related Tasks
+        /// </summary>
+        public string? Tag { get; set; }
         
         /// <summary>
         /// Number of tokens in the prompt.
@@ -94,6 +99,11 @@ public class Migration1000 : MigrationBase
         /// </summary>
         [Index(Unique = true)]
         public virtual string? RefId { get; set; }
+    
+        /// <summary>
+        /// Optional Tag to group related Tasks
+        /// </summary>
+        public string? Tag { get; set; }
         
         /// <summary>
         /// URL to publish the Task to

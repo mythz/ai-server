@@ -12,20 +12,22 @@ namespace AiServer.ServiceInterface.AppDb;
 public class CreateOpenAiChatTaskCommand(ILogger<CreateOpenAiChatTaskCommand> log, IDbConnection db, IMessageProducer mq) 
     : IAsyncCommand<OpenAiChatTask>
 {
-    public async Task ExecuteAsync(OpenAiChatTask request)
+    public async Task ExecuteAsync(OpenAiChatTask task)
     {
-        request.CreatedDate = DateTime.UtcNow;
-        request.RefId ??= Guid.NewGuid().ToString("N");
+        task.CreatedDate = DateTime.UtcNow;
+        task.RefId ??= Guid.NewGuid().ToString("N");
 
         using var dbTrans = db.OpenTransaction();
-        await db.InsertAsync(request);
+        await db.InsertAsync(task);
         await db.InsertAsync(new TaskSummary
         {
-            Id = request.Id,
+            Id = task.Id,
             Type = TaskType.OpenAiChat,
-            Model = request.Model,
-            Provider = request.Provider,
-            RefId = request.RefId,
+            Model = task.Model,
+            Provider = task.Provider,
+            RefId = task.RefId,
+            Tag = task.Tag,
+            CreatedDate = task.CreatedDate,
         });
         dbTrans.Commit();
 

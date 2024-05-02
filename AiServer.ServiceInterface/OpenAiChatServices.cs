@@ -15,6 +15,35 @@ public class OpenAiChatServices(
     IAutoQueryDb autoQuery,
     AppData appData) : Service
 {
+    public async Task<object> Any(GetOpenAiChat request)
+    {
+        var q = Db.From<TaskSummary>();
+        if (request.Id != null)
+            q.Where(x => x.Id == request.Id);
+        else if (request.RefId != null)
+            q.Where(x => x.RefId == request.RefId);
+        else
+            throw new ArgumentNullException(nameof(request.Id));
+        
+        var summary = await Db.SingleAsync(q);
+        if (summary != null)
+        {
+            var activeTask = await Db.SingleByIdAsync<OpenAiChatTask>(summary.Id);
+            if (activeTask != null)
+                return new GetOpenAiChatResponse { Result = activeTask };
+
+            using var monthDb = dbFactory.GetMonthDbConnection(summary.CreatedDate);
+            var completedTask = await monthDb.SingleByIdAsync<OpenAiChatCompleted>(summary.Id);
+            if (completedTask != null)
+                return new GetOpenAiChatResponse { Result = completedTask.ConvertTo<OpenAiChatTask>() };
+
+            var failedTask = await monthDb.SingleByIdAsync<OpenAiChatFailed>(summary.Id);
+            if (failedTask != null)
+                return new GetOpenAiChatResponse { Result = failedTask.ConvertTo<OpenAiChatTask>() };
+        }
+        throw HttpError.NotFound("Task not found");
+    }
+    
     public async Task<object> Any(QueryCompletedChatTasks query)
     {
         using var dbMonth = HostContext.AppHost.GetDbConnection(query.Db ?? dbFactory.GetNamedMonthDb(DateTime.UtcNow));

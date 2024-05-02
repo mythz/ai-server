@@ -64,9 +64,9 @@ public class CompleteNotificationCommand(ILogger<CompleteNotificationCommand> lo
                     CompletionTokens = completionTokens,
                     Provider = task.Provider,
                     DurationMs = task.DurationMs,
-                    Db = monthDbName,
-                    DbId = task.Id,
+                    Tag = task.Tag,
                     RefId = task.RefId,
+                    CreatedDate = task.CreatedDate,
                 }, x => x.Id == task.Id);
                 await dbMonth.InsertAsync(completedTask);
             }
