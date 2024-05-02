@@ -29,7 +29,7 @@ public class RequestOpenAiChatTasksCommand(ILogger<RequestOpenAiChatTasksCommand
             var rowsUpdated = await db.ReserveNextTasksAsync(requestId, worker.Models, worker.Name, worker.Concurrency);
             if (rowsUpdated == 0)
             {
-                log.LogInformation("No tasks available to reserve for {Provider}, exiting...", worker.Name);
+                log.LogDebug("No tasks available to reserve for {Provider}, exiting...", worker.Name);
                 return;
             }
             
