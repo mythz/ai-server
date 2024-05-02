@@ -20,9 +20,9 @@ public class ExecuteOpenAiChatTasksCommand(ILogger<ExecuteOpenAiChatTasksCommand
         {
             try
             {
-                var pendingTasks = appData.ChatTasksQueuedCount();
-                while (pendingTasks > 0)
+                while (true)
                 {
+                    var pendingTasks = appData.ChatTasksQueuedCount();
                     log.LogInformation("Executing {QueuedCount} queued OpenAI Chat Tasks...", pendingTasks);
 
                     var runningTasks = new List<Task>();
@@ -41,8 +41,7 @@ public class ExecuteOpenAiChatTasksCommand(ILogger<ExecuteOpenAiChatTasksCommand
 
                     await Task.WhenAll(runningTasks);
 
-                    pendingTasks = appData.ChatTasksQueuedCount();
-                    if (pendingTasks == 0)
+                    if (!appData.HasAnyChatTasksQueued())
                     {
                         log.LogInformation("No more queued OpenAI Chat Tasks left to execute, exiting...");
                         break;

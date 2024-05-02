@@ -135,13 +135,13 @@ public class ApiProviderWorker(ApiProvider apiProvider) : IApiProviderWorker
 
         try
         {
-            while (ChatQueue.Count > 0)
+            using var db = await dbFactory.OpenDbConnectionAsync();
+            while (Executor.ExecuteOpenAiChatTasksCommand.Running)
             {
                 if (isDisposed || cts.IsCancellationRequested)
                     return;
 
                 var completedTaskIds = new List<long>();
-                using var db = await dbFactory.OpenDbConnectionAsync();
                 while (!IsOffline && ChatQueue.TryTake(out var requestId))
                 {
                     if (ShouldStopRunning())
@@ -168,6 +168,13 @@ public class ApiProviderWorker(ApiProvider apiProvider) : IApiProviderWorker
                     {
                         ChatQueue.Add(requestId);
                     }
+                }
+
+                if (ChatQueue.Count == 0)
+                {
+                    completedTaskIds.Clear();
+                    log.LogInformation("{Provider} has processed all its tasks, rechecking after 5s...", Name);
+                    await Task.Delay(5000);
                 }
             }
         }

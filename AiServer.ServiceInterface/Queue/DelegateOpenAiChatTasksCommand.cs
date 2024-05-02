@@ -40,7 +40,7 @@ public class DelegateOpenAiChatTasksCommand(ILogger<DelegateOpenAiChatTasksComma
             
             while (true)
             {
-                foreach (var apiWorker in appData.ApiProviderWorkers)
+                foreach (var apiWorker in appData.ActiveWorkers)
                 {
                     // Don't assign more work to provider until their work queue is empty
                     if (apiWorker.ChatQueueCount > 0)
