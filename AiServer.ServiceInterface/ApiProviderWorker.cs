@@ -180,7 +180,7 @@ public class ApiProviderWorker(ApiProvider apiProvider) : IApiProviderWorker
                             Count = 3,
                         }
                     });
-                    await Task.Delay(1000);
+                    await Task.Delay(10_000);
                 }
             }
         }
