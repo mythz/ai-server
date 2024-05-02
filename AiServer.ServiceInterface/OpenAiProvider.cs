@@ -58,8 +58,8 @@ public class OpenAiProvider(ILogger<OpenAiProvider> log) : IOpenAiProvider
                     requestFilter:requestFilter,
                     responseFilter: res =>
                     {
-                        headers = res.Headers.Select(x => $"{x.Key}: {x.Value}").ToArray();
-                        contentHeaders = res.Content.Headers.Select(x => $"{x.Key}: {x.Value}").ToArray();
+                        headers = res.Headers.Select(x => $"{x.Key}: {x.Value.FirstOrDefault()}").ToArray();
+                        contentHeaders = res.Content.Headers.Select(x => $"{x.Key}: {x.Value.FirstOrDefault()}").ToArray();
 
                         // GROQ
                         if (res.Headers.TryGetValues("retry-after", out var retryAfterValues))
