@@ -1,6 +1,7 @@
 ﻿using System.Diagnostics;
 using System.Net;
 using System.Net.Http.Headers;
+using System.Text;
 using AiServer.ServiceModel;
 using Microsoft.Extensions.Logging;
 using ServiceStack;
@@ -46,6 +47,9 @@ public class OpenAiProvider(ILogger<OpenAiProvider> log) : IOpenAiProvider
         var retries = 0;
         while (retries++ < 10)
         {
+            var headers = Array.Empty<string>();
+            var contentHeaders = Array.Empty<string>();
+                
             int retryAfter = 0;
             var sleepMs = 1000 * retries;
             try
@@ -54,10 +58,16 @@ public class OpenAiProvider(ILogger<OpenAiProvider> log) : IOpenAiProvider
                     requestFilter:requestFilter,
                     responseFilter: res =>
                     {
+                        headers = res.Headers.Select(x => $"{x.Key}: {x.Value}").ToArray();
+                        contentHeaders = res.Content.Headers.Select(x => $"{x.Key}: {x.Value}").ToArray();
+
                         // GROQ
                         if (res.Headers.TryGetValues("retry-after", out var retryAfterValues))
                         {
-                            int.TryParse(retryAfterValues.ToString(), out retryAfter);
+                            var retryAfterStr = retryAfterValues.FirstOrDefault();
+                            log.LogWarning("retry-after: {RetryAfter}", retryAfterStr ?? "null");
+                            if (retryAfterStr != null) 
+                                int.TryParse(retryAfterStr, out retryAfter);
                         }
                     });
                 var durationMs = (int)sw.ElapsedMilliseconds;
@@ -66,6 +76,9 @@ public class OpenAiProvider(ILogger<OpenAiProvider> log) : IOpenAiProvider
             }
             catch (HttpRequestException e)
             {
+                log.LogInformation("Response Headers: {Headers}", string.Join("; ", headers));
+                log.LogInformation("Response.Content Headers: {Headers}", string.Join("; ", contentHeaders));
+
                 firstEx ??= e;
                 if (e.StatusCode is null or HttpStatusCode.TooManyRequests or >= HttpStatusCode.InternalServerError)
                 {
