@@ -19,6 +19,9 @@ public class AppDbWrites : IReturn<EmptyResponse>
     [Command<ReserveOpenAiChatTaskCommand>]
     public ReserveOpenAiChatTask? ReserveOpenAiChatTask { get; set; }
     
+    [Command<RequestOpenAiChatTasksCommand>]
+    public RequestOpenAiChatTasks? RequestOpenAiChatTasks { get; set; }
+    
     [Command<RequeueIncompleteTasksCommand>]
     public RequeueIncompleteTasks? RequeueIncompleteTasks { get; set; }
     

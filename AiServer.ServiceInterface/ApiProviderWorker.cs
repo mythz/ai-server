@@ -173,8 +173,14 @@ public class ApiProviderWorker(ApiProvider apiProvider) : IApiProviderWorker
                 if (ChatQueue.Count == 0)
                 {
                     completedTaskIds.Clear();
-                    log.LogInformation("{Provider} has processed all its tasks, rechecking after 5s...", Name);
-                    await Task.Delay(5000);
+                    log.LogInformation("{Provider} has processed all its tasks, requesting new tasks...", Name);
+                    mq.Publish(new AppDbWrites {
+                        RequestOpenAiChatTasks = new() {
+                            Provider = Name,
+                            Count = 3,
+                        }
+                    });
+                    await Task.Delay(1000);
                 }
             }
         }
