@@ -28,7 +28,7 @@ public class NotificationRequestCommand(ILogger<NotificationRequestCommand> log,
         Exception? holdError = null;
 
         var retry = 0;
-        while (retry++ < 3)
+        while (retry++ < 5)
         {
             try
             {
@@ -43,7 +43,7 @@ public class NotificationRequestCommand(ILogger<NotificationRequestCommand> log,
                 holdError ??= e;
                 log.LogError(e, "Failed to send notification request {Url}: {Message} x{Retry}", request.Url, e.Message, retry);
             }
-            await Task.Delay(retry * 20);
+            await Task.Delay(retry * retry * 200);
         }
         
         if (holdError != null)

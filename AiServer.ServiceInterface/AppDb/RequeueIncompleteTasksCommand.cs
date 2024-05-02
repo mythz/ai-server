@@ -14,7 +14,7 @@ public class RequeueIncompleteTasksCommand(IDbConnection db, IMessageProducer mq
     {
         var threshold = DateTime.UtcNow.AddMinutes(-5);
         Requeued = await db.ExecuteSqlAsync(
-            "UPDATE OpenAiChatTask SET RequestId = NULL, StartedDate = NULL, Worker = NULL, WorkerIp = NULL WHERE CompletedDate IS NULL AND Retries < 3 AND StartedDate < @threshold",
+            "UPDATE OpenAiChatTask SET RequestId = NULL, StartedDate = NULL, Worker = NULL, WorkerIp = NULL WHERE CompletedDate IS NULL AND StartedDate < @threshold",
             new { threshold });
         
         mq.Publish(new QueueTasks {

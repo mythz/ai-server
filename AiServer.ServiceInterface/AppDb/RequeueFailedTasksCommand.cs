@@ -38,6 +38,8 @@ public class RequeueFailedTasksCommand(ILogger<RequeueFailedTasksCommand> log,
         
         using var db = dbFactory.OpenDbConnection();
         await db.InsertAllAsync(requeuedTasks);
+        Requeued += await db.ExecuteSqlAsync(
+            "UPDATE OpenAiChatTask SET RequestId = NULL, StartedDate = NULL, Worker = NULL, WorkerIp = NULL, ErrorCode = NULL, Error = NULL, Retries = 0 WHERE CompletedDate IS NULL");
 
         await monthDb.DeleteAsync(monthDb.From<OpenAiChatFailed>().Where(x => request.Ids.Contains(x.Id)));
         
@@ -45,9 +47,6 @@ public class RequeueFailedTasksCommand(ILogger<RequeueFailedTasksCommand> log,
 
         mq.Publish(new QueueTasks {
             DelegateOpenAiChatTasks = new()
-        });
-        mq.Publish(new ExecutorTasks {
-            ExecuteOpenAiChatTasks = new()
         });
     }
 }
