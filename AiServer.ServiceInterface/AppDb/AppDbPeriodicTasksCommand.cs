@@ -1,6 +1,7 @@
 using Microsoft.Extensions.Logging;
 using ServiceStack;
 using AiServer.ServiceInterface.Executor;
+using AiServer.ServiceInterface.Queue;
 using AiServer.ServiceModel;
 using AiServer.ServiceModel.Types;
 using ServiceStack.Messaging;
@@ -21,6 +22,7 @@ public class AppDbPeriodicTasksCommand(ILogger<AppDbPeriodicTasksCommand> log, A
                 Caption = "Worker Stats",
                 Headers = [
                     nameof(WorkerStats.Name),
+                    nameof(WorkerStats.Queued),
                     nameof(WorkerStats.Received),
                     nameof(WorkerStats.Completed),
                     nameof(WorkerStats.Retries),

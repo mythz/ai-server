@@ -155,6 +155,7 @@ public class GetApiWorkerStatsResponse
 public class WorkerStats
 {
     public string Name { get; init; }
+    public long Queued { get; init; }
     public long Received { get; init; }
     public long Completed { get; init; }
     public long Retries { get; init; }

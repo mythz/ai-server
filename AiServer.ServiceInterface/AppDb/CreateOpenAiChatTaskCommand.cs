@@ -1,4 +1,5 @@
 ﻿using System.Data;
+using AiServer.ServiceInterface.Queue;
 using Microsoft.Extensions.Logging;
 using ServiceStack;
 using ServiceStack.Messaging;

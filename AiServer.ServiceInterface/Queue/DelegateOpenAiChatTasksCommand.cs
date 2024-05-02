@@ -1,12 +1,13 @@
-﻿using Microsoft.Extensions.Logging;
+﻿using AiServer.ServiceInterface.AppDb;
+using AiServer.ServiceInterface.Executor;
+using AiServer.ServiceModel.Types;
+using Microsoft.Extensions.Logging;
 using ServiceStack;
 using ServiceStack.Data;
 using ServiceStack.Messaging;
 using ServiceStack.OrmLite;
-using AiServer.ServiceInterface.Executor;
-using AiServer.ServiceModel.Types;
 
-namespace AiServer.ServiceInterface.AppDb;
+namespace AiServer.ServiceInterface.Queue;
 
 public class DelegateOpenAiChatTasks {}
 public class DelegateOpenAiChatTasksCommand(ILogger<DelegateOpenAiChatTasksCommand> log, AppData appData, 

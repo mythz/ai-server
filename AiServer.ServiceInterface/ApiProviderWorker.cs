@@ -37,6 +37,7 @@ public class ApiProviderWorker(ApiProvider apiProvider) : IApiProviderWorker
     private long retries = 0;
     private long failed = 0;
     private long running = 0;
+    public bool IsRunning => Interlocked.Read(ref running) > 0;
 
     public bool IsOffline
     {
@@ -105,6 +106,7 @@ public class ApiProviderWorker(ApiProvider apiProvider) : IApiProviderWorker
     public WorkerStats GetStats() => new()
     {
         Name = Name,
+        Queued = ChatQueueCount,
         Received = Interlocked.Read(ref received),
         Completed = Interlocked.Read(ref completed),
         Retries = Interlocked.Read(ref retries),

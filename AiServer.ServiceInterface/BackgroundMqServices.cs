@@ -1,6 +1,7 @@
 ﻿using AiServer.ServiceInterface.AppDb;
 using AiServer.ServiceInterface.Executor;
 using AiServer.ServiceInterface.Notification;
+using AiServer.ServiceInterface.Queue;
 using AiServer.ServiceModel;
 using AiServer.ServiceModel.Types;
 using ServiceStack;
