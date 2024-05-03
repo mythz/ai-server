@@ -122,8 +122,10 @@ public class GoogleOpenAiProvider(ILogger<GoogleOpenAiProvider> log) : IOpenAiPr
             await SendRequestAsync(worker, request, token);
             return true;
         }
-        catch (Exception)
+        catch (Exception e)
         {
+            if (e is TaskCanceledException)
+                throw;
             return false;
         }
     }
