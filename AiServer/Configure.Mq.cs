@@ -1,4 +1,5 @@
 using AiServer.ServiceInterface;
+using ServiceStack.Data;
 using ServiceStack.Messaging;
 
 [assembly: HostingStartup(typeof(AiServer.ConfigureMq))]
@@ -32,5 +33,9 @@ public class ConfigureMq : IHostingStartup
             mqService.RegisterHandler<ExecutorTasks>(appHost.ExecuteMessage);
 
             mqService.Start();
+            var services = appHost.GetApplicationServices();
+            AppData.Instance = services.GetRequiredService<AppData>();
+            using var db = services.GetRequiredService<IDbConnectionFactory>().OpenDbConnection();
+            AppData.Instance.StartWorkers(db);
         });
 }

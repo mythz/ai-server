@@ -92,9 +92,6 @@ public class QueryFailedChatTasks : QueryDb<OpenAiChatFailed>
 [ValidateApiKey]
 public class GetActiveProviders : IGet, IReturn<GetActiveProvidersResponse> {}
 
-[ValidateAuthSecret]
-public class ResetActiveProviders : IGet, IReturn<GetActiveProvidersResponse> {}
-
 public class GetActiveProvidersResponse
 {
     public ApiProvider[] Results { get; set; }
@@ -110,28 +107,6 @@ public class ChatApiProvider : IPost, IReturn<OpenAiChatResponse>
     
     [Input(Type = "textarea"), FieldCss(Field = "col-span-12 text-center")]
     public string? Prompt { get; set; }
-}
-
-[ValidateAuthSecret]
-public class OpenAiChatOperations : IPost, IReturn<EmptyResponse>
-{
-    public bool? ResetTaskQueue { get; set; }
-    public bool? RequeueIncompleteTasks { get; set; }
-}
-
-[ValidateAuthSecret]
-public class OpenAiChatFailedTasks : IPost, IReturn<EmptyResponse>
-{
-    public bool? ResetErrorState { get; set; }
-    [Input(Type = "tag")]
-    public List<long>? RequeueFailedTaskIds { get; set; }
-}
-
-[ValidateAuthSecret]
-public class ChangeApiProviderStatus : IPost, IReturn<StringResponse>
-{
-    public string Provider { get; set; }
-    public bool Online { get; set; }
 }
 
 [ValidateAuthSecret]
@@ -194,9 +169,3 @@ public class WorkerStats
 
 [ValidateAuthSecret]
 public class QueryTaskSummary : QueryDb<TaskSummary> {}
-
-[ValidateAuthSecret]
-public class FirePeriodicTask : IPost, IReturn<EmptyResponse>
-{
-    public PeriodicFrequency Frequency { get; set; }
-}

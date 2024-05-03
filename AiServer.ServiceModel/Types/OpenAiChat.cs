@@ -29,7 +29,7 @@ public class PeriodicTasks
 }
 public enum PeriodicFrequency
 {
-    Frequent,
+    Minute,
     Hourly,
     Daily,
     Monthly,

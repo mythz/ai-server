@@ -13,7 +13,7 @@ public class TimedHostedService(ILogger<TimedHostedService> logger, IMessageServ
 
     public Task StartAsync(CancellationToken stoppingToken)
     {
-        logger.LogInformation("Timed Hosted Service running.");
+        logger.LogInformation("Timed Hosted Service running");
 
         timer = new Timer(DoWork, null, TimeSpan.Zero,
             TimeSpan.FromSeconds(EverySecs));
@@ -29,7 +29,7 @@ public class TimedHostedService(ILogger<TimedHostedService> logger, IMessageServ
         if (logger.IsEnabled(LogLevel.Debug))
             logger.LogInformation("MQ Worker running at: {Stats}\n", mqServer.GetStatsDescription());
         
-        var frequentTasks = new PeriodicTasks { PeriodicFrequency = PeriodicFrequency.Frequent };
+        var frequentTasks = new PeriodicTasks { PeriodicFrequency = PeriodicFrequency.Minute };
         using var mq = mqServer.MessageFactory.CreateMessageProducer();
         mq.Publish(new AppDbWrites { PeriodicTasks = frequentTasks });
         // mq.Publish(new ExecutorTasks { PeriodicTasks = frequentTasks });
@@ -58,7 +58,7 @@ public class TimedHostedService(ILogger<TimedHostedService> logger, IMessageServ
 
     public Task StopAsync(CancellationToken stoppingToken)
     {
-        logger.LogInformation("Timed Hosted Service is stopping.");
+        logger.LogInformation("Timed Hosted Service is stopping");
 
         timer?.Change(Timeout.Infinite, 0);
 

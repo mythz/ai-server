@@ -27,7 +27,7 @@ public class ExecuteOpenAiChatTasksCommand(ILogger<ExecuteOpenAiChatTasksCommand
 
                     var runningTasks = new List<Task>();
 
-                    foreach (var worker in appData.ActiveWorkers)
+                    foreach (var worker in appData.GetActiveWorkers())
                     {
                         if (worker.IsOffline) continue;
                         

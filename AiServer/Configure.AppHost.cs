@@ -15,7 +15,7 @@ public class AppHost() : AppHostBase("AiServer"), IHostingStartup
             // Configure ASP.NET Core IOC Dependencies
             context.Configuration.GetSection(nameof(AppConfig)).Bind(AppConfig.Instance);
             services.AddSingleton(AppConfig.Instance);
-            services.AddSingleton(AppData.Instance);
+            services.AddSingleton<AppData>();
             
             services.AddSingleton<OpenAiProvider>();
             services.AddSingleton<GoogleOpenAiProvider>();
@@ -58,10 +58,6 @@ public class AppHost() : AppHostBase("AiServer"), IHostingStartup
         SetConfig(new HostConfig {
             AdminAuthSecret = authSecret,
         });
-        
-        AiProviderFactory.Instance = ApplicationServices.GetRequiredService<AiProviderFactory>();
-        using var db = ApplicationServices.GetRequiredService<IDbConnectionFactory>().OpenDbConnection();
-        AppData.Instance.Init(AiProviderFactory.Instance, db);
 
         // Increase timeout on all HttpClient requests
         var existingClientFactory = HttpUtils.CreateClient; 
@@ -71,6 +67,5 @@ public class AppHost() : AppHostBase("AiServer"), IHostingStartup
             client.Timeout = TimeSpan.FromSeconds(180);
             return client;
         };
-
     }
 }

@@ -1,16 +1,15 @@
 ﻿using System.Diagnostics;
 using System.Net;
 using System.Net.Http.Headers;
-using System.Text;
-using AiServer.ServiceModel;
 using Microsoft.Extensions.Logging;
 using ServiceStack;
+using AiServer.ServiceModel;
 
 namespace AiServer.ServiceInterface;
 
 public class OpenAiProvider(ILogger<OpenAiProvider> log) : IOpenAiProvider
 {
-    public async Task<OpenAiChatResult> ChatAsync(IApiProviderWorker worker, OpenAiChat request)
+    public async Task<OpenAiChatResult> ChatAsync(IApiProviderWorker worker, OpenAiChat request, CancellationToken token = default)
     {
         var sw = Stopwatch.StartNew();
         var openApiChatEndpoint = worker.GetApiEndpointUrlFor(TaskType.OpenAiChat);
@@ -47,7 +46,7 @@ public class OpenAiProvider(ILogger<OpenAiProvider> log) : IOpenAiProvider
                             if (retryAfterStr != null) 
                                 int.TryParse(retryAfterStr, out retryAfter);
                         }
-                    });
+                    }, token: token);
                 var durationMs = (int)sw.ElapsedMilliseconds;
                 var response = responseJson.FromJson<OpenAiChatResponse>();
                 return new(response, durationMs);
@@ -72,7 +71,7 @@ public class OpenAiProvider(ILogger<OpenAiProvider> log) : IOpenAiProvider
         throw firstEx ?? new Exception($"[{worker.Name}] Failed to complete OpenAI Chat request after {retries} retries");
     }
 
-    public async Task<bool> IsOnlineAsync(IApiProviderWorker apiProvider)
+    public async Task<bool> IsOnlineAsync(IApiProviderWorker apiProvider, CancellationToken token = default)
     {
         try
         {
@@ -82,7 +81,7 @@ public class OpenAiProvider(ILogger<OpenAiProvider> log) : IOpenAiProvider
                 Action<HttpRequestMessage>? requestFilter = apiProvider.ApiKey != null
                     ? req => req.Headers.Authorization = new AuthenticationHeaderValue("Bearer", apiProvider.ApiKey)
                     : null;
-                await heartbeatUrl.GetStringFromUrlAsync(requestFilter:requestFilter);
+                await heartbeatUrl.GetStringFromUrlAsync(requestFilter:requestFilter, token: token);
             }
 
             var apiModel = apiProvider.GetPreferredApiModel();
@@ -95,7 +94,7 @@ public class OpenAiProvider(ILogger<OpenAiProvider> log) : IOpenAiProvider
                 MaxTokens = 2,
                 Stream = false,
             };
-            await ChatAsync(apiProvider, request);
+            await ChatAsync(apiProvider, request, token);
             return true;
         }
         catch (Exception)

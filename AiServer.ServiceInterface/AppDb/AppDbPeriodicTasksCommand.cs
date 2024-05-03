@@ -15,7 +15,7 @@ public class AppDbPeriodicTasksCommand(ILogger<AppDbPeriodicTasksCommand> log, A
     {
         log.LogInformation("Executing {Type} {PeriodicFrequency} PeriodicTasks...", GetType().Name, request.PeriodicFrequency);
 
-        if (request.PeriodicFrequency == PeriodicFrequency.Frequent)
+        if (request.PeriodicFrequency == PeriodicFrequency.Minute)
         {
             var allStats = appData.ApiProviderWorkers.Select(x => x.GetStats()).ToList();
             var allStatsTable = Inspect.dumpTable(allStats, new TextDumpOptions {
@@ -31,21 +31,31 @@ public class AppDbPeriodicTasksCommand(ILogger<AppDbPeriodicTasksCommand> log, A
                     nameof(WorkerStats.Running),
                 ],
             }).Trim();
-            log.LogInformation("ApiProvider:\n{Stats}\n", allStatsTable);
-            log.LogInformation("DelegateOpenAiChatTasks: {Running}", DelegateOpenAiChatTasksCommand.Running);
-            log.LogInformation("ExecuteOpenAiChatTasksCommand: {Running}", ExecuteOpenAiChatTasksCommand.Running);
+
+            log.LogInformation("""
+                               ApiProvider:
+                               {Stats}
+
+                               Workers: {WorkerStatus} 
+                               Delegating: {Delegating}
+                               Executing: {Executing}
+                               """, 
+                allStatsTable,
+                appData.StoppedAt == null ? "Running" : $"Stopped at {appData.StoppedAt}",
+                DelegateOpenAiChatTasksCommand.Running,
+                ExecuteOpenAiChatTasksCommand.Running);
             
-            await DoFrequentTasksAsync();
+            await DoFrequentTasksAsync(request.PeriodicFrequency);
         }
     }
 
-    async Task DoFrequentTasksAsync()
+    async Task DoFrequentTasksAsync(PeriodicFrequency frequency)
     {
         // Requeue incomplete tasks
         var requeueCommand = executor.Command<RequeueIncompleteTasksCommand>();
         await requeueCommand.ExecuteAsync(new RequeueIncompleteTasks());
 
-        log.LogInformation("Requeued {Requeued} incomplete tasks", requeueCommand.Requeued);
+        log.LogInformation("[{Frequency}] Requeued {Requeued} incomplete tasks", frequency, requeueCommand.Requeued);
 
         mq.Publish(new QueueTasks {
             DelegateOpenAiChatTasks = new()
@@ -55,13 +65,13 @@ public class AppDbPeriodicTasksCommand(ILogger<AppDbPeriodicTasksCommand> log, A
         var offlineApiProviders = appData.ApiProviderWorkers.Where(x => x is { Enabled:true, IsOffline:true }).ToList();
         if (offlineApiProviders.Count > 0)
         {
-            log.LogInformation("Rechecking {OfflineCount} offline providers", offlineApiProviders.Count);
+            log.LogInformation("[{Frequency}] Rechecking {OfflineCount} offline providers", frequency, offlineApiProviders.Count);
             foreach (var apiProvider in offlineApiProviders)
             {
                 var chatProvider = apiProvider.GetOpenAiProvider();
                 if (await chatProvider.IsOnlineAsync(apiProvider))
                 {
-                    log.LogInformation("Provider {Provider} is back online", apiProvider.Name);
+                    log.LogInformation("[{Frequency}] Provider {Provider} is back online", frequency, apiProvider.Name);
                     var changeStatusCommand = executor.Command<ChangeProviderStatusCommand>();
                     await changeStatusCommand.ExecuteAsync(new() {
                         Name = apiProvider.Name,

@@ -214,17 +214,6 @@ public class OpenAiChatServices(
         Results = appData.ApiProviders
     };
 
-    public object Any(ResetActiveProviders request)
-    {
-        appData.ResetApiProviders(Db);
-        MessageProducer.Publish(new AppDbWrites {
-            ResetTaskQueue = new()
-        });
-        return new GetActiveProvidersResponse {
-            Results = appData.ApiProviders
-        };
-    }
-
     public async Task<object> Any(ChatApiProvider request)
     {
         var worker = appData.ApiProviderWorkers.FirstOrDefault(x => x.Name == request.Provider)
@@ -252,46 +241,6 @@ public class OpenAiChatServices(
         return response.Response;
     }
 
-    public async Task<object> Any(ChangeApiProviderStatus request)
-    {
-        var apiProvider = appData.ApiProviders.FirstOrDefault(x => x.Name == request.Provider)
-            ?? throw HttpError.NotFound("ApiProvider not found");
-        
-        DateTime? offlineDate = request.Online ? null : DateTime.UtcNow;
-        apiProvider.OfflineDate = offlineDate;
-        
-        MessageProducer.Publish(new AppDbWrites
-        {
-            RecordOfflineProvider = new()
-            {
-                Name = apiProvider.Name,
-                OfflineDate = offlineDate,
-            }
-        });
-        return new StringResponse
-        {
-            Result = offlineDate == null 
-                ? $"{apiProvider.Name} is back online" 
-                : $"{apiProvider.Name} was taken offline"
-        };
-    }
-
-    public async Task<object> Any(UpdateApiProvider request)
-    {
-        var result = await autoQuery.PartialUpdateAsync<ApiProvider>(request, base.Request);
-        var worker = appData.ApiProviderWorkers.FirstOrDefault(x => x.Id == request.Id);
-        worker?.Update(request);
-
-        if (request.Enabled == true || request.Concurrency > 0)
-        {
-            MessageProducer.Publish(new QueueTasks {
-                DelegateOpenAiChatTasks = new()
-            });
-        }
-        
-        return result;
-    }
-
     public async Task<object> Any(CreateApiKey request)
     {
         var feature = AssertPlugin<ApiKeysFeature>();
@@ -304,16 +253,4 @@ public class OpenAiChatServices(
     {
         Results = appData.ApiProviderWorkers.Select(x => x.GetStats()).ToList()
     };
-
-    public object Any(FirePeriodicTask request)
-    {
-        MessageProducer.Publish(new AppDbWrites
-        {
-            PeriodicTasks = new()
-            {
-                PeriodicFrequency = request.Frequency
-            }
-        });
-        return new EmptyResponse();
-    }
 }

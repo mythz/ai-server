@@ -6,15 +6,13 @@ public record OpenAiChatResult(OpenAiChatResponse Response, int DurationMs);
 
 public interface IOpenAiProvider
 {
-    Task<bool> IsOnlineAsync(IApiProviderWorker apiProvider);
+    Task<bool> IsOnlineAsync(IApiProviderWorker apiProvider, CancellationToken token = default);
 
-    Task<OpenAiChatResult> ChatAsync(IApiProviderWorker worker, OpenAiChat request);
+    Task<OpenAiChatResult> ChatAsync(IApiProviderWorker worker, OpenAiChat request, CancellationToken token = default);
 }
 
 public class AiProviderFactory(OpenAiProvider openAiProvider, GoogleOpenAiProvider googleProvider)
 {
-    public static AiProviderFactory Instance { get; set; }
-    
     public IOpenAiProvider GetOpenAiProvider(string? type = null)
     {
         return type == nameof(GoogleOpenAiProvider)

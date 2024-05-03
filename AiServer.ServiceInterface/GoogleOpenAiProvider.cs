@@ -22,7 +22,7 @@ public class GoogleOpenAiProvider(ILogger<GoogleOpenAiProvider> log) : IOpenAiPr
         new() { Category = "HARM_CATEGORY_SEXUALLY_EXPLICIT", Threshold = "BLOCK_ONLY_HIGH" },
     ];
 
-    public async Task<OpenAiChatResult> ChatAsync(IApiProviderWorker worker, OpenAiChat request)
+    public async Task<OpenAiChatResult> ChatAsync(IApiProviderWorker worker, OpenAiChat request, CancellationToken token = default)
     {
         if (string.IsNullOrEmpty(worker.ApiKey))
             throw new NotSupportedException("GoogleOpenAiProvider requires an ApiKey");
@@ -57,7 +57,7 @@ public class GoogleOpenAiProvider(ILogger<GoogleOpenAiProvider> log) : IOpenAiPr
         };
 
         var json = JSON.stringify(googleRequest);
-        var responseJson = await url.PostJsonToUrlAsync(json);
+        var responseJson = await url.PostJsonToUrlAsync(json, token:token);
 
         var res = (Dictionary<string, object>)JSON.parse(responseJson);
         var durationMs = (int)sw.ElapsedMilliseconds;
@@ -99,7 +99,7 @@ public class GoogleOpenAiProvider(ILogger<GoogleOpenAiProvider> log) : IOpenAiPr
         return new(to, durationMs);
     }
 
-    public async Task<bool> IsOnlineAsync(IApiProviderWorker apiProvider)
+    public async Task<bool> IsOnlineAsync(IApiProviderWorker apiProvider, CancellationToken token = default)
     {
         try
         {
@@ -113,7 +113,7 @@ public class GoogleOpenAiProvider(ILogger<GoogleOpenAiProvider> log) : IOpenAiPr
                 MaxTokens = 2,
                 Stream = false,
             };
-            await ChatAsync(apiProvider, request);
+            await ChatAsync(apiProvider, request, token);
             return true;
         }
         catch (Exception)

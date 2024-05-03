@@ -19,11 +19,11 @@ public interface IApiProviderWorker : IDisposable
     string GetApiModel(string model);
 }
 
-public class ApiProviderWorker(ApiProvider apiProvider, AiProviderFactory aiFactory) : IApiProviderWorker
+public class ApiProviderWorker : IApiProviderWorker
 {
     public int Id => apiProvider.Id;
     public string Name => apiProvider.Name;
-    public string[] Models = apiProvider.Models.Select(x => x.Model).ToArray();
+    public readonly string[] Models;
 
     // Can be modified at runtime
     public int Concurrency => apiProvider.Concurrency;
@@ -33,7 +33,7 @@ public class ApiProviderWorker(ApiProvider apiProvider, AiProviderFactory aiFact
     public int ChatQueueCount => ChatQueue.Count;
     
     private BlockingCollection<string> ChatQueue { get; } = new();
-    private CancellationTokenSource cts = new();
+    private readonly CancellationToken token;
 
     private bool isDisposed;
     private long received = 0;
@@ -41,6 +41,17 @@ public class ApiProviderWorker(ApiProvider apiProvider, AiProviderFactory aiFact
     private long retries = 0;
     private long failed = 0;
     private long running = 0;
+    private readonly ApiProvider apiProvider;
+    private readonly AiProviderFactory aiFactory;
+
+    public ApiProviderWorker(ApiProvider apiProvider, AiProviderFactory aiFactory, CancellationToken token = default)
+    {
+        this.apiProvider = apiProvider;
+        this.aiFactory = aiFactory;
+        this.token = token;
+        Models = apiProvider.Models.Select(x => x.Model).ToArray();
+    }
+
     public bool IsRunning => Interlocked.Read(ref running) > 0;
 
     public void Update(UpdateApiProvider request)
@@ -131,12 +142,7 @@ public class ApiProviderWorker(ApiProvider apiProvider, AiProviderFactory aiFact
         Running = Interlocked.Read(ref running) > 0,
     };
 
-    public void Stop()
-    {
-        cts.Cancel();
-    }
-
-    bool ShouldStopRunning() => IsOffline || isDisposed || cts.IsCancellationRequested;
+    bool ShouldStopRunning() => IsOffline || isDisposed || token.IsCancellationRequested;
 
     public async Task ExecuteTasksAsync(ILogger log, IDbConnectionFactory dbFactory, IMessageProducer mq)
     {
@@ -151,10 +157,10 @@ public class ApiProviderWorker(ApiProvider apiProvider, AiProviderFactory aiFact
 
         try
         {
-            using var db = await dbFactory.OpenDbConnectionAsync();
+            using var db = await dbFactory.OpenDbConnectionAsync(token:token);
             while (Executor.ExecuteOpenAiChatTasksCommand.Running)
             {
-                if (isDisposed || cts.IsCancellationRequested)
+                if (ShouldStopRunning())
                     return;
 
                 var completedTaskIds = new List<long>();
@@ -164,7 +170,7 @@ public class ApiProviderWorker(ApiProvider apiProvider, AiProviderFactory aiFact
                         return;
 
                     var chatTasks = await db.SelectAsync(db.From<OpenAiChatTask>().Where(x =>
-                        x.RequestId == requestId && x.CompletedDate == null && x.ErrorCode == null));
+                        x.RequestId == requestId && x.CompletedDate == null && x.ErrorCode == null), token:token);
                     var concurrentTasks = chatTasks.Select(x => ExecuteChatApiTaskAsync(log, mq, x));
 
                     completedTaskIds.AddRange((await Task.WhenAll(concurrentTasks)).Where(x => x.HasValue)
@@ -179,14 +185,17 @@ public class ApiProviderWorker(ApiProvider apiProvider, AiProviderFactory aiFact
                     .Where(x => x.RequestId != null && x.CompletedDate == null && x.ErrorCode == null &&
                                 x.Worker == Name
                                 && !completedTaskIds.Contains(x.Id))
-                    .Select(x => x.RequestId));
+                    .Select(x => x.RequestId), token:token);
                 if (incompleteRequestIds.Count > 0)
                 {
                     log.LogWarning("[{Name}] Missed completing {Count} OpenAI Chat Tasks",
                         Name, incompleteRequestIds.Count);
                     foreach (var requestId in incompleteRequestIds)
                     {
-                        ChatQueue.Add(requestId);
+                        if (ShouldStopRunning())
+                            return;
+
+                        ChatQueue.Add(requestId,token);
                     }
                 }
 
@@ -202,7 +211,7 @@ public class ApiProviderWorker(ApiProvider apiProvider, AiProviderFactory aiFact
                             Count = 3,
                         }
                     });
-                    await Task.Delay(10_000);
+                    await Task.Delay(10_000,token);
                 }
             }
         }
@@ -266,7 +275,7 @@ public class ApiProviderWorker(ApiProvider apiProvider, AiProviderFactory aiFact
             log.LogError(e, "[{Name}] Error executing {TaskId} OpenAI Chat Task: {Message}",
                 Name, task.Id, e.Message);
 
-            if (!await chatProvider.IsOnlineAsync(this))
+            if (!await chatProvider.IsOnlineAsync(this, token))
             {
                 var offlineDate = DateTime.UtcNow;
                 IsOffline = true;
@@ -300,8 +309,6 @@ public class ApiProviderWorker(ApiProvider apiProvider, AiProviderFactory aiFact
     public void Dispose()
     {
         isDisposed = true;
-        cts.Cancel();
-        cts.Dispose();
         ChatQueue.Dispose();
     }
 }
