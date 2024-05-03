@@ -40,6 +40,7 @@ public class AppDbPeriodicTasksCommand(ILogger<AppDbPeriodicTasksCommand> log, A
             log.LogInformation("""
                                Workers:
                                {Stats}
+                               
                                Offline:    {Offline}
                                Disabled:   {Disabled}
                                
