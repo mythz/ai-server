@@ -17,7 +17,8 @@ public class AppDbPeriodicTasksCommand(ILogger<AppDbPeriodicTasksCommand> log, A
 
         if (request.PeriodicFrequency == PeriodicFrequency.Minute)
         {
-            var allStats = appData.ApiProviderWorkers.Select(x => x.GetStats()).ToList();
+            var activeWorkers = appData.GetActiveWorkers().ToList();
+            var allStats = activeWorkers.Select(x => x.GetStats()).ToList();
             var allStatsTable = Inspect.dumpTable(allStats, new TextDumpOptions {
                 Caption = "Worker Stats",
                 Headers = [
@@ -31,15 +32,23 @@ public class AppDbPeriodicTasksCommand(ILogger<AppDbPeriodicTasksCommand> log, A
                     nameof(WorkerStats.Running),
                 ],
             }).Trim();
+            var offlineWorkers = appData.ApiProviders.Where(x => x is { Enabled: true, OfflineDate: not null }).Map(x => x.Name);
+            var disabledWorkers = appData.ApiProviders.Where(x => 
+                    activeWorkers.All(a => a.Name != x.Name) && !offlineWorkers.Contains(x.Name))
+                .Map(x => x.Name); 
 
             log.LogInformation("""
                                Workers:
                                {Stats}
-
+                               Offline:    {Offline}
+                               Disabled:   {Disabled}
+                               
                                Delegating: {Delegating}
-                               Executing: {Executing}
+                               Executing:  {Executing}
                                """, 
                 appData.StoppedAt == null ? allStatsTable : $"Stopped at {appData.StoppedAt}",
+                offlineWorkers.IsEmpty() ? "None" : offlineWorkers.Join(", "),
+                disabledWorkers.IsEmpty() ? "None" : disabledWorkers.Join(", "),
                 DelegateOpenAiChatTasksCommand.Running,
                 ExecuteOpenAiChatTasksCommand.Running);
             
