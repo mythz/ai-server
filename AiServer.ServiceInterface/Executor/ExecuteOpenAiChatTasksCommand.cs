@@ -22,6 +22,9 @@ public class ExecuteOpenAiChatTasksCommand(ILogger<ExecuteOpenAiChatTasksCommand
             {
                 while (true)
                 {
+                    if (appData.IsStopped)
+                        return;
+                
                     var pendingTasks = appData.ChatTasksQueuedCount();
                     log.LogInformation("[Chat] Executing {QueuedCount} queued tasks...", pendingTasks);
 
@@ -29,6 +32,9 @@ public class ExecuteOpenAiChatTasksCommand(ILogger<ExecuteOpenAiChatTasksCommand
 
                     foreach (var worker in appData.GetActiveWorkers())
                     {
+                        if (appData.IsStopped)
+                            return;
+                
                         if (worker.IsOffline) continue;
 
                         if (worker.ChatQueueCount > 0)

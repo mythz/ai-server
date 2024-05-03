@@ -233,7 +233,7 @@ public class ApiProviderWorker : IApiProviderWorker
             var (response, durationMs) = await chatProvider.ChatAsync(this, task.Request, token);
 
             Interlocked.Increment(ref completed);
-            log.LogInformation("[{Name}] Completed OpenAI Chat Task {Id} from {Request} in {Duration}ms",
+            log.LogInformation("[{Name}] Completed Chat Task {Id} from {Request} in {Duration}ms",
                 Name, task.Id, task.RequestId, durationMs);
 
             mq.Publish(new AppDbWrites
@@ -268,39 +268,50 @@ public class ApiProviderWorker : IApiProviderWorker
 
             return task.Id;
         }
+        catch (TaskCanceledException)
+        {
+            log.LogInformation("[{Name}] Chat Task {Id} from {Request} was cancelled", Name, task.Id, task.RequestId);
+            return null;
+        }
         catch (Exception e)
         {
+            if (ShouldStopRunning())
+                return null;
             Interlocked.Increment(ref failed);
 
             log.LogError(e, "[{Name}] Error executing {TaskId} OpenAI Chat Task: {Message}",
                 Name, task.Id, e.Message);
 
-            if (!await chatProvider.IsOnlineAsync(this, token))
+            try
             {
-                var offlineDate = DateTime.UtcNow;
-                IsOffline = true;
-                log.LogError("[{Name}] has been taken offline", Name);
-                mq.Publish(new AppDbWrites
+                if (!await chatProvider.IsOnlineAsync(this, token))
                 {
-                    RecordOfflineProvider = new()
+                    var offlineDate = DateTime.UtcNow;
+                    IsOffline = true;
+                    log.LogError("[{Name}] has been taken offline", Name);
+                    mq.Publish(new AppDbWrites
                     {
-                        Name = Name,
-                        OfflineDate = offlineDate,
-                    }
-                });
-            }
-            else
-            {
-                mq.Publish(new AppDbWrites
+                        RecordOfflineProvider = new()
+                        {
+                            Name = Name,
+                            OfflineDate = offlineDate,
+                        }
+                    });
+                }
+                else
                 {
-                    FailOpenAiChat = new()
+                    mq.Publish(new AppDbWrites
                     {
-                        Id = task.Id,
-                        Provider = Name,
-                        Error = e.ToResponseStatus(),
-                    },
-                });
+                        FailOpenAiChat = new()
+                        {
+                            Id = task.Id,
+                            Provider = Name,
+                            Error = e.ToResponseStatus(),
+                        },
+                    });
+                }
             }
+            catch (TaskCanceledException) {}
 
             return null;
         }

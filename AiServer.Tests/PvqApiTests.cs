@@ -69,7 +69,7 @@ public class PvqApiTests
             Name = "openrouter-free",
             ApiTypeId = 2,
             ApiKey = Environment.GetEnvironmentVariable("OPENROUTER_API_KEY"),
-            Concurrency = 3,
+            Concurrency = 1,
             Priority = 1,
             Enabled = true,
             Models =

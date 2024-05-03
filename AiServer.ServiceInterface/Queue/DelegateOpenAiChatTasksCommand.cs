@@ -38,11 +38,14 @@ public class DelegateOpenAiChatTasksCommand(ILogger<DelegateOpenAiChatTasksComma
         try
         {
             Interlocked.Increment(ref running);
-            
+
             while (true)
             {
                 foreach (var apiWorker in appData.GetActiveWorkers())
                 {
+                    if (appData.IsStopped)
+                        return;
+                
                     // Don't assign more work to provider until their work queue is empty
                     if (apiWorker.ChatQueueCount > 0)
                         continue;
@@ -64,6 +67,9 @@ public class DelegateOpenAiChatTasksCommand(ILogger<DelegateOpenAiChatTasksComma
                     }
                 }
 
+                if (appData.IsStopped)
+                    return;
+                
                 if (!ExecuteOpenAiChatTasksCommand.Running)
                 {
                     var hasWorkQueued = appData.HasAnyChatTasksQueued();
@@ -82,6 +88,9 @@ public class DelegateOpenAiChatTasksCommand(ILogger<DelegateOpenAiChatTasksComma
                     log.LogInformation("[Chat] All tasks have been delegated, exiting...");
                     return;
                 }
+                
+                if (appData.IsStopped)
+                    return;
                 
                 // Give time for workers to complete their tasks before trying to delegate more work to them
                 log.LogInformation("[Chat] Waiting {WaitSeconds} seconds before delegating more tasks...", CheckIntervalSeconds);

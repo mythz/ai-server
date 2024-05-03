@@ -23,6 +23,7 @@ public class AppData(ILogger<AppData> log, AiProviderFactory aiFactory, IMessage
     public HashSet<string> GetActiveWorkerModels() => GetActiveWorkers().SelectMany(x => x.Models).ToSet();
     private CancellationTokenSource? cts;
     public DateTime? StoppedAt { get; private set; }
+    public bool IsStopped => StoppedAt != null;
     
     public void ResetInitialChatTaskId(IDbConnection db)
     {
