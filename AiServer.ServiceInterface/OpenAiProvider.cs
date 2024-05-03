@@ -100,8 +100,10 @@ public class OpenAiProvider(ILogger<OpenAiProvider> log) : IOpenAiProvider
             await openApiChatEndpoint.PostJsonToUrlAsync(request, requestFilter:requestFilter, token: token);
             return true;
         }
-        catch (Exception)
+        catch (Exception e)
         {
+            if (e is TaskCanceledException)
+                throw;
             return false;
         }
     }
