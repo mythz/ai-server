@@ -33,15 +33,13 @@ public class AppDbPeriodicTasksCommand(ILogger<AppDbPeriodicTasksCommand> log, A
             }).Trim();
 
             log.LogInformation("""
-                               ApiProvider:
+                               Workers:
                                {Stats}
 
-                               Workers: {WorkerStatus} 
                                Delegating: {Delegating}
                                Executing: {Executing}
                                """, 
-                allStatsTable,
-                appData.StoppedAt == null ? "Running" : $"Stopped at {appData.StoppedAt}",
+                appData.StoppedAt == null ? allStatsTable : $"Stopped at {appData.StoppedAt}",
                 DelegateOpenAiChatTasksCommand.Running,
                 ExecuteOpenAiChatTasksCommand.Running);
             
