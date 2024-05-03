@@ -27,7 +27,7 @@ public class AppDbPeriodicTasksCommand(ILogger<AppDbPeriodicTasksCommand> log, A
                     nameof(WorkerStats.Completed),
                     nameof(WorkerStats.Retries),
                     nameof(WorkerStats.Failed),
-                    nameof(WorkerStats.OfflineAt),
+                    nameof(WorkerStats.Offline),
                     nameof(WorkerStats.Running),
                 ],
             }).Trim();

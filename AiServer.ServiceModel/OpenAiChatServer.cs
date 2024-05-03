@@ -163,7 +163,7 @@ public class WorkerStats
     public long Completed { get; init; }
     public long Retries { get; init; }
     public long Failed { get; init; }
-    public DateTime? OfflineAt { get; init; }
+    public DateTime? Offline { get; init; }
     public bool Running { get; init; }
 }
 

@@ -30,7 +30,7 @@ public class ApiProviderWorker : IApiProviderWorker
     public string? ApiKey => apiProvider.ApiKey;
     public string? HeartbeatUrl => GetHeartbeatUrl(apiProvider);
     public bool Enabled => apiProvider.Enabled;
-    public int ChatQueueCount => ChatQueue.Count;
+    public int ChatQueueCount => isDisposed ? 0 : ChatQueue.Count;
     
     private BlockingCollection<string> ChatQueue { get; } = new();
     private readonly CancellationToken token;
@@ -51,7 +51,7 @@ public class ApiProviderWorker : IApiProviderWorker
         this.token = token;
         Models = apiProvider.Models.Select(x => x.Model).ToArray();
     }
-
+    
     public bool IsRunning => Interlocked.Read(ref running) > 0;
 
     public void Update(UpdateApiProvider request)
@@ -91,7 +91,7 @@ public class ApiProviderWorker : IApiProviderWorker
 
     public void AddToChatQueue(string requestId)
     {
-        ChatQueue.Add(requestId);
+        ChatQueue.Add(requestId, token);
         Interlocked.Increment(ref received);
     }
 
@@ -138,7 +138,7 @@ public class ApiProviderWorker : IApiProviderWorker
         Completed = Interlocked.Read(ref completed),
         Retries = Interlocked.Read(ref retries),
         Failed = Interlocked.Read(ref failed),
-        OfflineAt = apiProvider.OfflineDate,
+        Offline = apiProvider.OfflineDate,
         Running = Interlocked.Read(ref running) > 0,
     };
 
@@ -166,15 +166,15 @@ public class ApiProviderWorker : IApiProviderWorker
                 var completedTaskIds = new List<long>();
                 while (!IsOffline && ChatQueue.TryTake(out var requestId))
                 {
-                    if (ShouldStopRunning())
-                        return;
-
                     var chatTasks = await db.SelectAsync(db.From<OpenAiChatTask>().Where(x =>
                         x.RequestId == requestId && x.CompletedDate == null && x.ErrorCode == null), token:token);
                     var concurrentTasks = chatTasks.Select(x => ExecuteChatApiTaskAsync(log, mq, x));
 
                     completedTaskIds.AddRange((await Task.WhenAll(concurrentTasks)).Where(x => x.HasValue)
                         .Select(x => x!.Value));
+
+                    if (ShouldStopRunning())
+                        return;
                 }
 
                 if (ShouldStopRunning())
@@ -195,11 +195,11 @@ public class ApiProviderWorker : IApiProviderWorker
                         if (ShouldStopRunning())
                             return;
 
-                        ChatQueue.Add(requestId,token);
+                        ChatQueue.Add(requestId, token);
                     }
                 }
 
-                if (ChatQueue.Count == 0)
+                if (ChatQueueCount == 0)
                 {
                     completedTaskIds.Clear();
                     log.LogInformation("[{Name}] processed all its tasks, requesting new tasks...", Name);
@@ -230,7 +230,7 @@ public class ApiProviderWorker : IApiProviderWorker
             if (ShouldStopRunning())
                 return null;
 
-            var (response, durationMs) = await chatProvider.ChatAsync(this, task.Request);
+            var (response, durationMs) = await chatProvider.ChatAsync(this, task.Request, token);
 
             Interlocked.Increment(ref completed);
             log.LogInformation("[{Name}] Completed OpenAI Chat Task {Id} from {Request} in {Duration}ms",

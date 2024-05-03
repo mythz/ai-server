@@ -23,18 +23,18 @@ public class ExecuteOpenAiChatTasksCommand(ILogger<ExecuteOpenAiChatTasksCommand
                 while (true)
                 {
                     var pendingTasks = appData.ChatTasksQueuedCount();
-                    log.LogInformation("Executing {QueuedCount} queued OpenAI Chat Tasks...", pendingTasks);
+                    log.LogInformation("[Chat] Executing {QueuedCount} queued tasks...", pendingTasks);
 
                     var runningTasks = new List<Task>();
 
                     foreach (var worker in appData.GetActiveWorkers())
                     {
                         if (worker.IsOffline) continue;
-                        
+
                         if (worker.ChatQueueCount > 0)
                         {
-                            log.LogInformation("{Counter} Executing {Count} OpenAI Chat Tasks for {Provider}", 
-                                ++counter, worker.ChatQueueCount, worker.Name);
+                            log.LogInformation("[Chat][{Provider}] {Counter} Executing {Count} Tasks",
+                                ++counter, worker.Name, worker.ChatQueueCount);
                             runningTasks.Add(worker.ExecuteTasksAsync(log, dbFactory, mq));
                         }
                     }
@@ -43,14 +43,18 @@ public class ExecuteOpenAiChatTasksCommand(ILogger<ExecuteOpenAiChatTasksCommand
 
                     if (!appData.HasAnyChatTasksQueued())
                     {
-                        log.LogInformation("No more queued OpenAI Chat Tasks left to execute, exiting...");
+                        log.LogInformation("[Chat] No more queued tasks left to execute, exiting...");
                         break;
                     }
                 }
             }
+            catch (TaskCanceledException)
+            {
+                log.LogInformation("[Chat] Executing tasks was cancelled, exiting...");
+            }
             catch (Exception ex)
             {
-                log.LogError(ex, "Error executing tasks");
+                log.LogError(ex, "[Chat] Error executing tasks, exiting...");
             }
             finally
             {

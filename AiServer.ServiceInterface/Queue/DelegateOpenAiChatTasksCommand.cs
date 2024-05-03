@@ -47,7 +47,7 @@ public class DelegateOpenAiChatTasksCommand(ILogger<DelegateOpenAiChatTasksComma
                     if (apiWorker.ChatQueueCount > 0)
                         continue;
                     
-                    var requestId = Guid.NewGuid().ToString("N");
+                    var requestId = appData.CreateRequestId();
                     var models = apiWorker.Models;
                     var pendingTasks = await db.ReserveNextTasksAsync(
                         requestId: requestId,
@@ -58,8 +58,8 @@ public class DelegateOpenAiChatTasksCommand(ILogger<DelegateOpenAiChatTasksComma
                     DelegatedCount += pendingTasks;
                     if (pendingTasks > 0)
                     {
-                        log.LogDebug("{Counter} Reserved and delegating {PendingTasks} to {Provider}",
-                            ++counter, pendingTasks, apiWorker.Name);
+                        log.LogDebug("[Chat][{Provider}] {Counter}: Reserved and delegating {PendingTasks} tasks",
+                            ++counter, apiWorker.Name, pendingTasks);
                         apiWorker.AddToChatQueue(requestId);
                     }
                 }
@@ -79,14 +79,18 @@ public class DelegateOpenAiChatTasksCommand(ILogger<DelegateOpenAiChatTasksComma
                     .Where(x => x.RequestId == null && x.StartedDate == null && x.CompletedDate == null && activeWorkerModels.Contains(x.Model)));
                 if (!hasMoreTasksToDelegate)
                 {
-                    log.LogInformation("All OpenAI Chat Tasks have been delegated, exiting...");
+                    log.LogInformation("[Chat] All tasks have been delegated, exiting...");
                     return;
                 }
                 
                 // Give time for workers to complete their tasks before trying to delegate more work to them
-                log.LogInformation("Waiting {WaitSeconds} seconds before delegating more tasks...", CheckIntervalSeconds);
+                log.LogInformation("[Chat] Waiting {WaitSeconds} seconds before delegating more tasks...", CheckIntervalSeconds);
                 await Task.Delay(TimeSpan.FromSeconds(CheckIntervalSeconds));
             }
+        }
+        catch (TaskCanceledException)
+        {
+            log.LogInformation("[Chat] Delegating tasks was cancelled, exiting...");
         }
         finally
         {

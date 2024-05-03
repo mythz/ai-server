@@ -24,12 +24,11 @@ public class RequestOpenAiChatTasksCommand(ILogger<RequestOpenAiChatTasksCommand
         var assigned = 0; 
         for (int i = 0; i < request.Count; i++)
         {
-            var requestId = Guid.NewGuid().ToString("N");
-            
+            var requestId = appData.CreateRequestId();
             var rowsUpdated = await db.ReserveNextTasksAsync(requestId, worker.Models, worker.Name, worker.Concurrency);
             if (rowsUpdated == 0)
             {
-                log.LogDebug("No tasks available to reserve for {Provider}, exiting...", worker.Name);
+                log.LogDebug("[{Provider}] No tasks available to reserve, exiting...", worker.Name);
                 return;
             }
             
@@ -37,6 +36,6 @@ public class RequestOpenAiChatTasksCommand(ILogger<RequestOpenAiChatTasksCommand
             worker.AddToChatQueue(requestId);
         }
 
-        log.LogInformation("Assigned {Assigned} tasks to {Provider}", assigned, worker.Name);
+        log.LogInformation("[{Provider}] Assigned {Assigned} tasks", assigned, worker.Name);
     }
 }

@@ -78,4 +78,6 @@ public class AppData(ILogger<AppData> log, AiProviderFactory aiFactory, IMessage
     
     public bool HasAnyChatTasksQueued() => GetActiveWorkers().Any(x => x.ChatQueueCount > 0);
     public int ChatTasksQueuedCount() => GetActiveWorkers().Sum(x => x.ChatQueueCount);
+    
+    public string CreateRequestId() => Guid.NewGuid().ToString("N");
 }
