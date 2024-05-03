@@ -49,34 +49,47 @@ public class AppDbPeriodicTasksCommand(ILogger<AppDbPeriodicTasksCommand> log, A
 
     async Task DoFrequentTasksAsync(PeriodicFrequency frequency)
     {
-        // Requeue incomplete tasks
-        var requeueCommand = executor.Command<RequeueIncompleteTasksCommand>();
-        await requeueCommand.ExecuteAsync(new RequeueIncompleteTasks());
-
-        log.LogInformation("[{Frequency}] Requeued {Requeued} incomplete tasks", frequency, requeueCommand.Requeued);
-
-        mq.Publish(new QueueTasks {
-            DelegateOpenAiChatTasks = new()
-        });
-        
-        // Check if any offline providers are back online
-        var offlineApiProviders = appData.ApiProviderWorkers.Where(x => x is { Enabled:true, IsOffline:true }).ToList();
-        if (offlineApiProviders.Count > 0)
+        try
         {
-            log.LogInformation("[{Frequency}] Rechecking {OfflineCount} offline providers", frequency, offlineApiProviders.Count);
-            foreach (var apiProvider in offlineApiProviders)
+            var token = appData.Token;
+            if (appData.IsStopped)
+                return;
+
+            // Requeue incomplete tasks
+            var requeueCommand = executor.Command<RequeueIncompleteTasksCommand>();
+            await requeueCommand.ExecuteAsync(new RequeueIncompleteTasks());
+
+            if (appData.IsStopped)
+                return;
+            log.LogInformation("[{Frequency}] Requeued {Requeued} incomplete tasks", frequency, requeueCommand.Requeued);
+
+            mq.Publish(new QueueTasks {
+                DelegateOpenAiChatTasks = new()
+            });
+        
+            // Check if any offline providers are back online
+            var offlineApiProviders = appData.ApiProviderWorkers.Where(x => x is { Enabled:true, IsOffline:true }).ToList();
+            if (offlineApiProviders.Count > 0)
             {
-                var chatProvider = apiProvider.GetOpenAiProvider();
-                if (await chatProvider.IsOnlineAsync(apiProvider))
+                log.LogInformation("[{Frequency}] Rechecking {OfflineCount} offline providers", frequency, offlineApiProviders.Count);
+                foreach (var apiProvider in offlineApiProviders)
                 {
-                    log.LogInformation("[{Frequency}] Provider {Provider} is back online", frequency, apiProvider.Name);
-                    var changeStatusCommand = executor.Command<ChangeProviderStatusCommand>();
-                    await changeStatusCommand.ExecuteAsync(new() {
-                        Name = apiProvider.Name,
-                        OfflineDate = null,
-                    });
+                    var chatProvider = apiProvider.GetOpenAiProvider();
+                    if (await chatProvider.IsOnlineAsync(apiProvider, token))
+                    {
+                        if (appData.IsStopped)
+                            return;
+
+                        log.LogInformation("[{Frequency}] Provider {Provider} is back online", frequency, apiProvider.Name);
+                        var changeStatusCommand = executor.Command<ChangeProviderStatusCommand>();
+                        await changeStatusCommand.ExecuteAsync(new() {
+                            Name = apiProvider.Name,
+                            OfflineDate = null,
+                        });
+                    }
                 }
             }
         }
+        catch (TaskCanceledException) {}
     }
 }

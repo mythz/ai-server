@@ -22,6 +22,7 @@ public class AppData(ILogger<AppData> log, AiProviderFactory aiFactory, IMessage
     public IEnumerable<ApiProviderWorker> GetActiveWorkers() => ApiProviderWorkers.Where(x => x is { Enabled: true, Concurrency: > 0 });
     public HashSet<string> GetActiveWorkerModels() => GetActiveWorkers().SelectMany(x => x.Models).ToSet();
     private CancellationTokenSource? cts;
+    public CancellationToken Token => cts?.Token ?? CancellationToken.None;
     public DateTime? StoppedAt { get; private set; }
     public bool IsStopped => StoppedAt != null;
     
@@ -45,11 +46,11 @@ public class AppData(ILogger<AppData> log, AiProviderFactory aiFactory, IMessage
 
     public void StartWorkers(ApiProvider[] apiProviders)
     {
+        cts = new();
         lock (SyncRoot)
         {
             log.LogInformation("Starting {Count} Workers...", apiProviders.Length);
             StoppedAt = null;
-            cts = new();
             ApiProviders = apiProviders;
             ApiProviderWorkers = apiProviders.Select(x => new ApiProviderWorker(x, aiFactory, cts.Token)).ToArray();
         }
@@ -61,13 +62,14 @@ public class AppData(ILogger<AppData> log, AiProviderFactory aiFactory, IMessage
 
     public void StopWorkers()
     {
+        cts?.Cancel();
+        cts?.Dispose();
+        cts = null;
+
         lock (SyncRoot)
         {
             log.LogInformation("Stopping {Count} Workers...", ApiProviderWorkers.Length);
             StoppedAt = DateTime.UtcNow;
-            cts?.Cancel();
-            cts?.Dispose();
-            cts = null;
             foreach (var worker in ApiProviderWorkers)
             {
                 worker.Dispose();
