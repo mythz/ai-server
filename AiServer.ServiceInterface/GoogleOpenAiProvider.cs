@@ -28,36 +28,7 @@ public class GoogleOpenAiProvider(ILogger<GoogleOpenAiProvider> log) : IOpenAiPr
             throw new NotSupportedException("GoogleOpenAiProvider requires an ApiKey");
 
         var sw = Stopwatch.StartNew();
-        var url = worker.GetApiEndpointUrlFor(TaskType.OpenAiChat)
-            .AddQueryParam("key", worker.ApiKey);
-        
-        var generationConfig = new Dictionary<string, object> {};
-        if (request.Temperature != null)
-            generationConfig["temperature"] = request.Temperature;
-        if (request.MaxTokens != null)
-            generationConfig["maxOutputTokens"] = request.MaxTokens;
-
-        var googleRequest = new Dictionary<string, object>
-        {
-            ["contents"] = new List<object> {
-                new Dictionary<string, object>
-                {
-                    ["parts"] = new List<object> {
-                        new Dictionary<string, object> {
-                            ["text"] = request.Messages[0].Content,
-                        }
-                    }
-                }
-            },
-            ["safetySettings"] = SafetySettings.Map(x => new Dictionary<string, object> {
-                ["category"] = x.Category,
-                ["threshold"] = x.Threshold,
-            }),
-            ["generationConfig"] = generationConfig,
-        };
-
-        var json = JSON.stringify(googleRequest);
-        var responseJson = await url.PostJsonToUrlAsync(json, token:token);
+        var responseJson = await SendRequestAsync(worker, request, token);
 
         var res = (Dictionary<string, object>)JSON.parse(responseJson);
         var durationMs = (int)sw.ElapsedMilliseconds;
@@ -99,11 +70,46 @@ public class GoogleOpenAiProvider(ILogger<GoogleOpenAiProvider> log) : IOpenAiPr
         return new(to, durationMs);
     }
 
-    public async Task<bool> IsOnlineAsync(IApiProviderWorker apiProvider, CancellationToken token = default)
+    private async Task<string> SendRequestAsync(IApiProviderWorker worker, OpenAiChat request, CancellationToken token)
+    {
+        var url = worker.GetApiEndpointUrlFor(TaskType.OpenAiChat)
+            .AddQueryParam("key", worker.ApiKey);
+        
+        var generationConfig = new Dictionary<string, object> {};
+        if (request.Temperature != null)
+            generationConfig["temperature"] = request.Temperature;
+        if (request.MaxTokens != null)
+            generationConfig["maxOutputTokens"] = request.MaxTokens;
+
+        var googleRequest = new Dictionary<string, object>
+        {
+            ["contents"] = new List<object> {
+                new Dictionary<string, object>
+                {
+                    ["parts"] = new List<object> {
+                        new Dictionary<string, object> {
+                            ["text"] = request.Messages[0].Content,
+                        }
+                    }
+                }
+            },
+            ["safetySettings"] = SafetySettings.Map(x => new Dictionary<string, object> {
+                ["category"] = x.Category,
+                ["threshold"] = x.Threshold,
+            }),
+            ["generationConfig"] = generationConfig,
+        };
+
+        var json = JSON.stringify(googleRequest);
+        var responseJson = await url.PostJsonToUrlAsync(json, token:token);
+        return responseJson;
+    }
+
+    public async Task<bool> IsOnlineAsync(IApiProviderWorker worker, CancellationToken token = default)
     {
         try
         {
-            var apiModel = apiProvider.GetPreferredApiModel();
+            var apiModel = worker.GetPreferredApiModel();
             var request = new OpenAiChat
             {
                 Model = apiModel,
@@ -113,7 +119,7 @@ public class GoogleOpenAiProvider(ILogger<GoogleOpenAiProvider> log) : IOpenAiPr
                 MaxTokens = 2,
                 Stream = false,
             };
-            await ChatAsync(apiProvider, request, token);
+            await SendRequestAsync(worker, request, token);
             return true;
         }
         catch (Exception)

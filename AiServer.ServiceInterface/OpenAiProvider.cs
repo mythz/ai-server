@@ -71,20 +71,21 @@ public class OpenAiProvider(ILogger<OpenAiProvider> log) : IOpenAiProvider
         throw firstEx ?? new Exception($"[{worker.Name}] Failed to complete OpenAI Chat request after {retries} retries");
     }
 
-    public async Task<bool> IsOnlineAsync(IApiProviderWorker apiProvider, CancellationToken token = default)
+    public async Task<bool> IsOnlineAsync(IApiProviderWorker worker, CancellationToken token = default)
     {
         try
         {
-            var heartbeatUrl = apiProvider.HeartbeatUrl;
+            Action<HttpRequestMessage>? requestFilter = worker.ApiKey != null
+                ? req => req.Headers.Authorization = new AuthenticationHeaderValue("Bearer", worker.ApiKey)
+                : null;
+
+            var heartbeatUrl = worker.HeartbeatUrl;
             if (heartbeatUrl != null)
             {
-                Action<HttpRequestMessage>? requestFilter = apiProvider.ApiKey != null
-                    ? req => req.Headers.Authorization = new AuthenticationHeaderValue("Bearer", apiProvider.ApiKey)
-                    : null;
                 await heartbeatUrl.GetStringFromUrlAsync(requestFilter:requestFilter, token: token);
             }
 
-            var apiModel = apiProvider.GetPreferredApiModel();
+            var apiModel = worker.GetPreferredApiModel();
             var request = new OpenAiChat
             {
                 Model = apiModel,
@@ -94,7 +95,9 @@ public class OpenAiProvider(ILogger<OpenAiProvider> log) : IOpenAiProvider
                 MaxTokens = 2,
                 Stream = false,
             };
-            await ChatAsync(apiProvider, request, token);
+
+            var openApiChatEndpoint = worker.GetApiEndpointUrlFor(TaskType.OpenAiChat);
+            await openApiChatEndpoint.PostJsonToUrlAsync(request, requestFilter:requestFilter, token: token);
             return true;
         }
         catch (Exception)

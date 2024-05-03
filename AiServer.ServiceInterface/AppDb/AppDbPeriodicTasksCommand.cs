@@ -43,14 +43,16 @@ public class AppDbPeriodicTasksCommand(ILogger<AppDbPeriodicTasksCommand> log, A
                 DelegateOpenAiChatTasksCommand.Running,
                 ExecuteOpenAiChatTasksCommand.Running);
             
-            await DoFrequentTasksAsync(request.PeriodicFrequency);
+            if (request.PeriodicFrequency == PeriodicFrequency.Minute)
+                await DoFrequentTasksAsync();
         }
     }
 
-    async Task DoFrequentTasksAsync(PeriodicFrequency frequency)
+    async Task DoFrequentTasksAsync()
     {
         try
         {
+            var frequency = PeriodicFrequency.Minute;
             var token = appData.Token;
             if (appData.IsStopped)
                 return;

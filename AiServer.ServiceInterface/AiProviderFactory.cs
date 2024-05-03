@@ -6,7 +6,7 @@ public record OpenAiChatResult(OpenAiChatResponse Response, int DurationMs);
 
 public interface IOpenAiProvider
 {
-    Task<bool> IsOnlineAsync(IApiProviderWorker apiProvider, CancellationToken token = default);
+    Task<bool> IsOnlineAsync(IApiProviderWorker worker, CancellationToken token = default);
 
     Task<OpenAiChatResult> ChatAsync(IApiProviderWorker worker, OpenAiChat request, CancellationToken token = default);
 }
