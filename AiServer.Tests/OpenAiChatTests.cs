@@ -4,6 +4,7 @@ using ServiceStack.Text;
 
 namespace AiServer.Tests;
 
+[Explicit]
 public class OpenAiChatTests
 {
     [Test]
