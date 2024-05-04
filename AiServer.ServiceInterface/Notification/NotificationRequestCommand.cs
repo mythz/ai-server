@@ -20,6 +20,9 @@ public class NotificationRequestCommand(ILogger<NotificationRequestCommand> log,
 {
     public async Task ExecuteAsync(NotificationRequest request)
     {
+        if (request.Url == null)
+            throw new ArgumentNullException(nameof(request.Url));
+            
         var method = request.Method ?? HttpMethods.Post;
         Action<HttpRequestMessage>? requestFilter = request.BearerToken != null
             ? req => req.Headers.Authorization = new AuthenticationHeaderValue("Bearer", request.BearerToken)

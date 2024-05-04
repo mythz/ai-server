@@ -64,6 +64,9 @@ public class NotificationTasks : IReturn<EmptyResponse>
 {
     [Command<NotificationRequestCommand>]
     public NotificationRequest? NotificationRequest { get; set; }
+
+    [Command<SendPendingNotificationsCommand>]
+    public SendPendingNotifications? SendPendingNotifications { get; set; }
 }
 
 [Tag(Tag.Tasks)]

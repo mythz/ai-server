@@ -78,6 +78,10 @@ public class AppDbPeriodicTasksCommand(ILogger<AppDbPeriodicTasksCommand> log, A
             mq.Publish(new QueueTasks {
                 DelegateOpenAiChatTasks = new()
             });
+            
+            mq.Publish(new NotificationTasks {
+                SendPendingNotifications = new()
+            });
         
             // Check if any offline providers are back online
             var offlineApiProviders = appData.ApiProviderWorkers.Where(x => x is { Enabled:true, IsOffline:true }).ToList();
