@@ -2,6 +2,7 @@
 
 namespace AiServer.ServiceModel;
 
+[ValidateAuthSecret]
 public class GetSummaryStats : IGet, IReturn<GetSummaryStatsResponse>
 {
     public DateTime? From { get; set; }
