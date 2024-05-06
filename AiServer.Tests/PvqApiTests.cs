@@ -20,6 +20,9 @@ public class PvqApiTests
             Enabled = true,
             Models =
             [
+                new() { Model = "gemma:2b", },
+                new() { Model = "qwen:4b", },
+                new() { Model = "deepseek-coder:6.7b" },
                 new() { Model = "phi3", },
                 new() { Model = "mistral", },
                 new() { Model = "llama3:8b", },
@@ -36,6 +39,10 @@ public class PvqApiTests
             Priority = 0,
             Enabled = true,
             Models = [
+                new() { Model = "gemma:2b", },
+                new() { Model = "qwen:4b", },
+                new() { Model = "deepseek-coder:6.7b" },
+                new() { Model = "deepseek-coder:33b" },
                 new() { Model = "phi3", },
                 new() { Model = "mistral", },
                 new() { Model = "llama3:8b", },
