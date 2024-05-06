@@ -60,13 +60,13 @@ public class AppData(ILogger<AppData> log, AiProviderFactory aiFactory, IMessage
             log.LogInformation(
                 """
                 [{Name}] is {Enabled}, currently {Online} at concurrency {Concurrency}, accepting models:
-                         {Models}
+                  {Models}
                 """,
                 worker.Name,
                 worker.Enabled ? "Enabled" : "Disabled",
                 worker.IsOffline ? "Offline" : "Online",
                 worker.Concurrency, 
-                string.Join(',', worker.Models));
+                string.Join("\n  ", worker.Models));
         }
         
         using var mq = mqServer.CreateMessageProducer();
