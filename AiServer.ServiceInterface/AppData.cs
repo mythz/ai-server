@@ -54,6 +54,17 @@ public class AppData(ILogger<AppData> log, AiProviderFactory aiFactory, IMessage
             ApiProviders = apiProviders;
             ApiProviderWorkers = apiProviders.Select(x => new ApiProviderWorker(x, aiFactory, cts.Token)).ToArray();
         }
+
+        foreach (var worker in ApiProviderWorkers)
+        {
+            log.LogInformation("[{Name}] is {Enabled}, currently {Online}, handling models [{Models}] at concurrency {Concurrency}",
+                worker.Name,
+                worker.Enabled ? "Enabled" : "Disabled",
+                worker.IsOffline ? "Offline" : "Online",
+                string.Join(',', worker.Models), 
+                worker.Concurrency);
+        }
+        
         using var mq = mqServer.CreateMessageProducer();
         mq.Publish(new QueueTasks {
             DelegateOpenAiChatTasks = new()

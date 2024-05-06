@@ -27,6 +27,7 @@ public class ApiProviderWorker : IApiProviderWorker
 
     // Can be modified at runtime
     public int Concurrency => apiProvider.Concurrency;
+    public int Priority => apiProvider.Priority;
     public string? ApiKey => apiProvider.ApiKey;
     public string? HeartbeatUrl => GetHeartbeatUrl(apiProvider);
     public bool Enabled => apiProvider.Enabled;
