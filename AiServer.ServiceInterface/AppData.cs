@@ -57,12 +57,16 @@ public class AppData(ILogger<AppData> log, AiProviderFactory aiFactory, IMessage
 
         foreach (var worker in ApiProviderWorkers)
         {
-            log.LogInformation("[{Name}] is {Enabled}, currently {Online}, handling models [{Models}] at concurrency {Concurrency}",
+            log.LogInformation(
+                """
+                [{Name}] is {Enabled}, currently {Online} at concurrency {Concurrency}, accepting models:
+                         {Models}
+                """,
                 worker.Name,
                 worker.Enabled ? "Enabled" : "Disabled",
                 worker.IsOffline ? "Offline" : "Online",
-                string.Join(',', worker.Models), 
-                worker.Concurrency);
+                worker.Concurrency, 
+                string.Join(',', worker.Models));
         }
         
         using var mq = mqServer.CreateMessageProducer();
