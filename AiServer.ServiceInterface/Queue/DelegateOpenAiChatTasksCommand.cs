@@ -47,7 +47,7 @@ public class DelegateOpenAiChatTasksCommand(ILogger<DelegateOpenAiChatTasksComma
                         return;
                 
                     // Don't assign more work to provider until their work queue is empty
-                    if (apiWorker.ChatQueueCount > 0)
+                    if (apiWorker is { ChatQueueCount: > 0 })
                         continue;
                     
                     var requestId = appData.CreateRequestId();
@@ -61,8 +61,8 @@ public class DelegateOpenAiChatTasksCommand(ILogger<DelegateOpenAiChatTasksComma
                     DelegatedCount += pendingTasks;
                     if (pendingTasks > 0)
                     {
-                        log.LogDebug("[Chat][{Provider}] {Counter}: Reserved and delegating {PendingTasks} tasks",
-                            ++counter, apiWorker.Name, pendingTasks);
+                        log.LogDebug("[Chat][{Provider}] {Counter}: Reserved and delegating {PendingTasks} tasks with Id {RequestId}",
+                            apiWorker.Name, ++counter, pendingTasks, requestId);
                         apiWorker.AddToChatQueue(requestId);
                     }
                 }

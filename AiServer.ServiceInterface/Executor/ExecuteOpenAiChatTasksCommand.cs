@@ -35,14 +35,12 @@ public class ExecuteOpenAiChatTasksCommand(ILogger<ExecuteOpenAiChatTasksCommand
                         if (appData.IsStopped)
                             return;
                 
-                        if (worker.IsOffline) continue;
+                        if (worker.IsOffline) 
+                            continue;
 
-                        if (worker.ChatQueueCount > 0)
-                        {
-                            log.LogInformation("[Chat][{Provider}] {Counter} Executing {Count} Tasks",
-                                ++counter, worker.Name, worker.ChatQueueCount);
-                            runningTasks.Add(worker.ExecuteTasksAsync(log, dbFactory, mq));
-                        }
+                        log.LogInformation("[Chat][{Provider}] {Counter} Executing {Count} Tasks",
+                            worker.Name, ++counter, worker.ChatQueueCount);
+                        runningTasks.Add(worker.ExecuteTasksAsync(log, dbFactory, mq));
                     }
 
                     await Task.WhenAll(runningTasks);

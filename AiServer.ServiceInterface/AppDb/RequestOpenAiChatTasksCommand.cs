@@ -36,6 +36,6 @@ public class RequestOpenAiChatTasksCommand(ILogger<RequestOpenAiChatTasksCommand
             worker.AddToChatQueue(requestId);
         }
 
-        log.LogInformation("[{Provider}] Assigned {Assigned} tasks", assigned, worker.Name);
+        log.LogInformation("[{Provider}] Assigned {Assigned} tasks", worker.Name, assigned);
     }
 }
