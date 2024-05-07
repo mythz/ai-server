@@ -128,7 +128,6 @@ public class ApiProviderWorker : IApiProviderWorker
                                ?? throw new ArgumentNullException(nameof(apiProvider.Models));
         var model = apiProviderModel.ApiModel ?? apiProviderModel.Model;
         return model ?? throw new ArgumentNullException(nameof(model));
-        ;
     }
 
     public WorkerStats GetStats() => new()
@@ -212,7 +211,8 @@ public class ApiProviderWorker : IApiProviderWorker
                             Count = 3,
                         }
                     });
-                    await Task.Delay(10_000,token);
+                    await Task.Delay(10_000, token);
+                    log.LogInformation("[{Name}] has {Count} new Tasks assigned...", Name, ChatQueueCount);
                 }
             }
         }

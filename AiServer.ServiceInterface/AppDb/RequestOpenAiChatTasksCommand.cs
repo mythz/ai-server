@@ -17,7 +17,7 @@ public class RequestOpenAiChatTasksCommand(ILogger<RequestOpenAiChatTasksCommand
     public async Task ExecuteAsync(RequestOpenAiChatTasks request)
     {
         var worker = appData.ApiProviderWorkers.FirstOrDefault(x => x.Name == request.Provider) 
-                     ?? throw new ArgumentNullException(nameof(request.Provider));
+            ?? throw new ArgumentNullException(nameof(request.Provider));
 
         using var db = await dbFactory.OpenDbConnectionAsync();
 
@@ -28,7 +28,8 @@ public class RequestOpenAiChatTasksCommand(ILogger<RequestOpenAiChatTasksCommand
             var rowsUpdated = await db.ReserveNextTasksAsync(requestId, worker.Models, worker.Name, worker.Concurrency);
             if (rowsUpdated == 0)
             {
-                log.LogDebug("[{Provider}] No tasks available to reserve, exiting...", worker.Name);
+                log.LogInformation("[{Provider}] No tasks available to reserve for Models {Models} at Concurrency {Concurrency}, exiting...", 
+                    worker.Name, string.Join(",", worker.Models), worker.Concurrency);
                 return;
             }
             
