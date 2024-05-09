@@ -112,6 +112,7 @@ public class PvqApiTests
         {
             Name = "openrouter",
             ApiTypeId = 2,
+            HeartbeatUrl = "https://openrouter.ai/api/v1/auth/key",
             ApiKey = Environment.GetEnvironmentVariable("OPENROUTER_API_KEY"),
             Concurrency = 1,
             Priority = 0,

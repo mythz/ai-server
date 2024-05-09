@@ -9,14 +9,9 @@ namespace AiServer.Tests;
 [Explicit]
 public class OpenAiProviderTests
 {
-    private AiProviderFactory factory;
-
-    public OpenAiProviderTests()
-    {
-        factory = new AiProviderFactory(
-            new OpenAiProvider(new NullLogger<OpenAiProvider>()),
-            new GoogleOpenAiProvider(new NullLogger<GoogleOpenAiProvider>()));
-    }
+    private readonly AiProviderFactory factory = new(
+        new OpenAiProvider(new NullLogger<OpenAiProvider>()),
+        new GoogleOpenAiProvider(new NullLogger<GoogleOpenAiProvider>()));
 
     [Test]
     public async Task Can_Send_Ollama_Phi3_Request()
@@ -58,5 +53,25 @@ public class OpenAiProviderTests
         });
         
         response.PrintDump();
+    }
+
+    [Test]
+    public async Task Can_detect_OpenRouterProvider_IsOnline()
+    {
+        var openAi = factory.GetOpenAiProvider();
+
+        var openRouter = new ApiProviderWorker(TestUtils.OpenRouterProvider, factory);
+        var isOnline = await openAi.IsOnlineAsync(openRouter);
+        Assert.That(isOnline);
+    }
+
+    [Test]
+    public async Task Can_detect_Groq_IsOnline()
+    {
+        var openAi = factory.GetOpenAiProvider();
+
+        var openRouter = new ApiProviderWorker(TestUtils.GroqProvider, factory);
+        var isOnline = await openAi.IsOnlineAsync(openRouter);
+        Assert.That(isOnline);
     }
 }

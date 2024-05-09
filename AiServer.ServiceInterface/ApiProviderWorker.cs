@@ -126,8 +126,8 @@ public class ApiProviderWorker : IApiProviderWorker
     {
         var apiProviderModel = apiProvider.Models.FirstOrDefault()
                                ?? throw new ArgumentNullException(nameof(apiProvider.Models));
-        var model = apiProviderModel.ApiModel ?? apiProviderModel.Model;
-        return model ?? throw new ArgumentNullException(nameof(model));
+        var model = apiProviderModel.Model;
+        return GetApiModel(model) ?? throw new ArgumentNullException(nameof(model));
     }
 
     public WorkerStats GetStats() => new()

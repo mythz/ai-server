@@ -71,11 +71,74 @@ public static class TestUtils
     {
         Id = 1,
         Name = "ollama",
-        HeartbeatUrl = "https://openrouter.ai/api/v1/auth/key",
         TaskPaths = new() {
             [TaskType.OpenAiChat] = "/v1/chat/completions",
         },
     };
+
+    public static ApiType OpenRouterApiType = new()
+    {
+        Id = 2,
+        Name = "openrouter",
+        Website = "https://openrouter.ai",
+        ApiBaseUrl = "https://openrouter.ai/api",
+        TaskPaths = new()
+        {
+            [TaskType.OpenAiChat] = "/v1/chat/completions",
+        },
+        HeartbeatUrl = "https://openrouter.ai/api/v1/auth/key",
+        ApiModels = new()
+        {
+            ["mistral"] = "mistralai/mistral-7b-instruct",
+            ["gemma"] = "google/gemma-7b-it",
+            ["mixtral"] = "mistralai/mixtral-8x7b-instruct",
+            ["mixtral:8x22b"] = "mistralai/mixtral-8x22b-instruct",
+            ["llama3:8b"] = "meta-llama/llama-3-8b-instruct",
+            ["llama3:70b"] = "meta-llama/llama-3-70b-instruct",
+            ["wizardlm2:7b"] = "microsoft/wizardlm-2-7b",
+            ["wizardlm2:8x22b"] = "microsoft/wizardlm-2-8x22b",
+            ["mistral-small"] = "mistralai/mistral-small",
+            ["mistral-large"] = "mistralai/mistral-large",
+            ["dbrx"] = "databricks/dbrx-instruct",
+
+            ["command-r"] = "cohere/command-r",
+            ["command-r-plus"] = "cohere/command-r-plus",
+
+            ["claude-3-haiku"] = "anthropic/claude-3-haiku",
+            ["claude-3-sonnet"] = "anthropic/claude-3-sonnet",
+            ["claude-3-opus"] = "anthropic/claude-3-opus",
+
+            ["gemini-pro"] = "google/gemini-pro",
+            ["gemini-pro-1.5"] = "google/gemini-pro-1.5",
+            ["gemini-pro-vision"] = "google/gemini-pro-vision",
+
+            ["gpt-3.5-turbo"] = "openai/gpt-3.5-turbo",
+            ["gpt-4"] = "openai/gpt-4",
+            ["gpt-4-turbo"] = "openai/gpt-4-turbo",
+            ["gpt-4-vision"] = "openai/gpt-4-vision-preview",
+        }
+    };
+
+    public static ApiType GroqApiType = new()
+    {
+        Id = 3,
+        Name = "groq",
+        Website = "https://groq.com",
+        ApiBaseUrl = "https://api.groq.com/openai",
+        TaskPaths = new()
+        {
+            [TaskType.OpenAiChat] = "/v1/chat/completions",
+        },
+        HeartbeatUrl = "https://api.groq.com",
+        ApiModels = new()
+        {
+            ["llama3:8b"] = "llama3-8b-8192",
+            ["llama3:70b"] = "llama3-70b-8192",
+            ["mixtral"] = "mixtral-8x7b-32768",
+            ["gemma"] = "gemma-7b-it",
+        }
+    };
+    
     public static ApiType GoogleApiType = new()
     {
         Id = 5,
@@ -128,4 +191,57 @@ public static class TestUtils
         ],
         ApiType = GoogleApiType
     };
+
+    public static ApiProvider OpenRouterProvider = new()
+    {
+        Name = "openrouter",
+        ApiTypeId = 2,
+        HeartbeatUrl = "https://openrouter.ai/api/v1/auth/key",
+        ApiKey = Environment.GetEnvironmentVariable("OPENROUTER_API_KEY"),
+        Concurrency = 1,
+        Priority = 0,
+        Enabled = true,
+        Models =
+        [
+            new() { Model = "mixtral:8x22b", },
+            new() { Model = "llama3:70b" },
+            new() { Model = "wizardlm2:7b", },
+            new() { Model = "wizardlm2:8x22b", },
+            new() { Model = "mistral-small", },
+            new() { Model = "mistral-large", },
+            new() { Model = "dbrx", },
+            new() { Model = "command-r", },
+            new() { Model = "command-r-plus", },
+            new() { Model = "claude-3-haiku", },
+            new() { Model = "claude-3-sonnet", },
+            new() { Model = "claude-3-opus", },
+            new() { Model = "gemini-pro", },
+            new() { Model = "gemini-pro-1.5", },
+            new() { Model = "gemini-pro-vision", },
+            new() { Model = "gpt-3.5-turbo", },
+            new() { Model = "gpt-4", },
+            new() { Model = "gpt-4-turbo", },
+            new() { Model = "gpt-4-vision", },
+        ],
+        ApiType = OpenRouterApiType,
+    };
+
+    public static ApiProvider GroqProvider = new()
+    {
+        Name = "groq",
+        ApiTypeId = 3,
+        ApiKey = Environment.GetEnvironmentVariable("GROQ_API_KEY"),
+        Concurrency = 1,
+        Priority = 2,
+        Enabled = true,
+        Models =
+        [
+            new() { Model = "llama3:8b", },
+            new() { Model = "llama3:70b", },
+            new() { Model = "gemma", },
+            new() { Model = "mixtral", },
+        ],
+        ApiType = GroqApiType,
+    };
+
 }
