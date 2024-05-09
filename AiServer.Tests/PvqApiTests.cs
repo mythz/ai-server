@@ -22,7 +22,6 @@ public class PvqApiTests
             [
                 new() { Model = "gemma:2b", },
                 new() { Model = "qwen:4b", },
-                new() { Model = "deepseek-coder:6.7b" },
                 new() { Model = "phi3", },
                 new() { Model = "mistral", },
                 new() { Model = "llama3:8b", },

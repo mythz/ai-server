@@ -71,6 +71,7 @@ public static class TestUtils
     {
         Id = 1,
         Name = "ollama",
+        HeartbeatUrl = "https://openrouter.ai/api/v1/auth/key",
         TaskPaths = new() {
             [TaskType.OpenAiChat] = "/v1/chat/completions",
         },
