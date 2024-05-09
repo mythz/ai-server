@@ -50,6 +50,54 @@ public class CreateApiProvider : ICreateDb<ApiProvider>, IReturn<IdResponse>
     public List<ApiProviderModel> Models { get; set; }
 }
 
+[ValidateAuthSecret]
+[Description("View and API Provider Models")]
+public class QueryApiProviderModels : QueryDb<ApiProviderModel>
+{
+    public int? ApiProviderId { get; set; }
+    public string? Model { get; set; }
+    public string? ApiModel { get; set; }
+}
+
+[ValidateAuthSecret]
+[Description("Register a Model supported by an API Provider")]
+public class CreateApiProviderModel : ICreateDb<ApiProviderModel>, IReturn<IdResponse>
+{
+    [Description("The ApiProvider Id")]
+    public int ApiProviderId { get; set; }
+    
+    [Description("Supported ApiModel Name")]
+    public string Model { get; set; }
+    
+    [Description("Model to use when sending requests to the API Provider")]
+    public string? ApiModel { get; set; }
+}
+
+[ValidateAuthSecret]
+[Description("Update the Model supported by the API Provider")]
+public class UpdateApiProviderModel : IPatchDb<ApiProviderModel>, IReturn<IdResponse>
+{
+    [Description("The ApiProviderModel Id")]
+    public int Id { get; set; }
+    
+    [Description("The ApiProvider Id")]
+    public int? ApiProviderId { get; set; }
+    
+    [Description("Supported ApiModel Name")]
+    public string? Model { get; set; }
+    
+    [Description("Model to use when sending requests to the API Provider")]
+    public string? ApiModel { get; set; }
+}
+
+[ValidateAuthSecret]
+[Description("Delete a Model supported by the API Provider")]
+public class DeleteApiProviderModel : IDeleteDb<ApiProviderModel>, IReturn<IdResponse>
+{
+    [Description("The ApiProviderModel Id")]
+    public int Id { get; set; }
+}
+
 [ValidateApiKey]
 [Description("Different Models available in AI Server")]
 public class QueryApiModels : QueryDb<ApiModel> {}
