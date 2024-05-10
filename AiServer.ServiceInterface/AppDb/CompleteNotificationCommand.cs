@@ -19,8 +19,6 @@ public class CompleteNotificationCommand(ILogger<CompleteNotificationCommand> lo
 {
     public async Task ExecuteAsync(CompleteNotification request)
     {
-        var failed = request.Error != null;
-        
         using var db = dbFactory.OpenDbConnection();
         if (request.Type == TaskType.OpenAiChat)
         {
@@ -31,7 +29,8 @@ public class CompleteNotificationCommand(ILogger<CompleteNotificationCommand> lo
                 return;
             }
 
-            if (!failed)
+            var succeeded = request.Error == null;
+            if (succeeded)
             {
                 await db.UpdateOnlyAsync(() => new OpenAiChatTask
                 {
@@ -40,18 +39,19 @@ public class CompleteNotificationCommand(ILogger<CompleteNotificationCommand> lo
             }
             else
             {
-                var errorCode = request.Error?.ErrorCode;
+                task.Error = request.Error;
+                task.ErrorCode = request.Error!.ErrorCode; 
                 await db.UpdateOnlyAsync(() => new OpenAiChatTask
                 {
                     Error = request.Error,
-                    ErrorCode = errorCode,
+                    ErrorCode = task.ErrorCode,
                 }, where: x => x.Id == request.Id);
             }
 
             var monthDbName = dbFactory.GetNamedMonthDb(task.CreatedDate);
             using var dbMonth = HostContext.AppHost.GetDbConnection(monthDbName);
 
-            if (!failed)
+            if (succeeded)
             {
                 var completedTask = task.ToOpenAiChatCompleted();
                 var openAiUsage = task.Response?.Usage;
