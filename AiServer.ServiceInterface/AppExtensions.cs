@@ -51,6 +51,7 @@ public static class AppExtensions
     {
         var to = from.CreateNew<OpenAiChatFailed>();
         to.Request = from.Request;
+        to.Response = from.Response;
         to.FailedDate = DateTime.UtcNow;
         return to;
     }
