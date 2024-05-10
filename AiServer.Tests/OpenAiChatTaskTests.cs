@@ -180,7 +180,7 @@ public class OpenAiChatTaskTests
     {
         var client = TestUtils.CreateAdminClient();
 
-        var api = await client.ApiAsync(new OpenAiChatOperations
+        var api = await client.ApiAsync(new ChatOperations
         {
             RequeueIncompleteTasks = true
         });

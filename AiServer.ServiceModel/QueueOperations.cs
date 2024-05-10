@@ -21,17 +21,17 @@ public class ChangeApiProviderStatus : IPost, IReturn<StringResponse>
 }
 
 [ValidateAuthSecret]
-public class OpenAiChatOperations : IPost, IReturn<EmptyResponse>
+public class ChatOperations : IPost, IReturn<EmptyResponse>
 {
     public bool? ResetTaskQueue { get; set; }
     public bool? RequeueIncompleteTasks { get; set; }
 }
 
 [ValidateAuthSecret]
-public class OpenAiChatFailedTasks : IPost, IReturn<EmptyResponse>
+public class ChatFailedTasks : IPost, IReturn<EmptyResponse>
 {
     public bool? ResetErrorState { get; set; }
-    [Input(Type = "tag")]
+    [Input(Type = "tag"), FieldCss(Field = "col-span-12")]
     public List<long>? RequeueFailedTaskIds { get; set; }
 }
 
@@ -39,4 +39,19 @@ public class OpenAiChatFailedTasks : IPost, IReturn<EmptyResponse>
 public class FirePeriodicTask : IPost, IReturn<EmptyResponse>
 {
     public PeriodicFrequency Frequency { get; set; }
+}
+
+[ValidateAuthSecret]
+public class ChatNotifyCompletedTasks : IPost, IReturn<ChatNotifyCompletedTasksResponse>
+{
+    [ValidateNotEmpty]
+    [Input(Type = "tag"), FieldCss(Field = "col-span-12")]
+    public List<int> Ids { get; set; }
+}
+
+public class ChatNotifyCompletedTasksResponse
+{
+    public Dictionary<long, string> Errors { get; set; } = new();
+    public List<long> Results { get; set; } = [];
+    public ResponseStatus? ResponseStatus { get; set; }
 }

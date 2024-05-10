@@ -13,7 +13,7 @@ public class NotificationRequest
     public string? BearerToken { get; set; }
     public string? ContentType { get; set; }
     public string? Body { get; set; }
-    public CompleteNotification CompleteNotification { get; set; }
+    public CompleteNotification? CompleteNotification { get; set; }
 }
 
 public class NotificationRequestCommand(ILogger<NotificationRequestCommand> log, IMessageProducer mq) : IAsyncCommand<NotificationRequest>
@@ -22,13 +22,14 @@ public class NotificationRequestCommand(ILogger<NotificationRequestCommand> log,
     {
         if (request.Url == null)
             throw new ArgumentNullException(nameof(request.Url));
-            
+
         var method = request.Method ?? HttpMethods.Post;
         Action<HttpRequestMessage>? requestFilter = request.BearerToken != null
             ? req => req.Headers.Authorization = new AuthenticationHeaderValue("Bearer", request.BearerToken)
             : null;
 
         Exception? holdError = null;
+        DateTime? completedDate = null;
 
         var retry = 0;
         while (retry++ < 5)
@@ -38,7 +39,7 @@ public class NotificationRequestCommand(ILogger<NotificationRequestCommand> log,
                 await request.Url.SendStringToUrlAsync(method, requestBody:request.Body, contentType:request.ContentType,
                     requestFilter:requestFilter);
                 holdError = null;
-                request.CompleteNotification.CompletedDate = DateTime.UtcNow;
+                completedDate = DateTime.UtcNow;
                 break;
             }
             catch (Exception e)
@@ -48,7 +49,13 @@ public class NotificationRequestCommand(ILogger<NotificationRequestCommand> log,
             }
             await Task.Delay(retry * retry * 200);
         }
-        
+
+        // Null if resending a completed notification
+        if (request.CompleteNotification == null)
+            return;
+
+        request.CompleteNotification.CompletedDate = completedDate;
+
         if (holdError != null)
         {
             request.CompleteNotification.Error = holdError.ToResponseStatus();

@@ -2,14 +2,17 @@
 using AiServer.ServiceModel;
 using AiServer.ServiceModel.Types;
 using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.Logging;
 using ServiceStack;
 using ServiceStack.Data;
 using ServiceStack.Messaging;
 using ServiceStack.OrmLite;
+using OpenAiChatCompleted = AiServer.ServiceModel.Types.OpenAiChatCompleted;
 
 namespace AiServer.ServiceInterface;
 
 public class OpenAiChatServices(
+    ILogger<OpenAiChatServices> log,
     IDbConnectionFactory dbFactory, 
     IMessageProducer mq,
     IAutoQueryDb autoQuery,
@@ -156,7 +159,7 @@ public class OpenAiChatServices(
         }
     }
 
-    public object Any(OpenAiChatOperations request)
+    public object Any(ChatOperations request)
     {
         mq.Publish(new AppDbWrites {
             RequeueIncompleteTasks = request.RequeueIncompleteTasks == true
@@ -170,7 +173,7 @@ public class OpenAiChatServices(
         return new EmptyResponse();
     }
 
-    public object Any(OpenAiChatFailedTasks request)
+    public object Any(ChatFailedTasks request)
     {
         mq.Publish(new AppDbWrites {
             ResetFailedTasks = request.ResetErrorState == true
@@ -182,6 +185,48 @@ public class OpenAiChatServices(
         });
         
         return new EmptyResponse();
+    }
+    
+    public async Task<object>  Any(ChatNotifyCompletedTasks request)
+    {
+        var taskSummary = await Db.SelectByIdsAsync<TaskSummary>(request.Ids);
+        var monthDbs = taskSummary.GroupBy(x => dbFactory.GetNamedMonthDb(x.CreatedDate.Date));
+        var to = new ChatNotifyCompletedTasksResponse();
+
+        foreach (var entry in monthDbs)
+        {
+            using var monthDb = await dbFactory.OpenDbConnectionAsync(entry.Key);
+            var taskIds = entry.Map(x => x.Id);
+            var tasks = await monthDb.SelectByIdsAsync<OpenAiChatCompleted>(taskIds);
+            foreach (var task in tasks)
+            {
+                try
+                {
+                    if (task.Response == null)
+                    {
+                        to.Errors[task.Id] = "Response Missing";
+                        continue;
+                    }
+                    var json = task.Response.ToJson();
+                    mq.Publish(new NotificationTasks
+                    {
+                        NotificationRequest = new()
+                        {
+                            Url = task.ReplyTo!,
+                            ContentType = MimeTypes.Json,
+                            Body = json,
+                        },
+                    });
+                    to.Results.Add(task.Id);
+                }
+                catch (Exception e)
+                {
+                    to.Errors[task.Id] = e.Message;
+                    log.LogError(e, "Error sending notification for {TaskId}: {Message}", task.Id, e.Message);
+                }
+            }
+        }
+        return to;
     }
 
     public async Task<object> Any(CompleteOpenAiChat request)
