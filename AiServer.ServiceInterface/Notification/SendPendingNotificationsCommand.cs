@@ -29,7 +29,7 @@ public class SendPendingNotificationsCommand(ILogger<SendPendingNotificationsCom
 
                 using var db = await dbFactory.OpenDbConnectionAsync();
                 var pendingNotifications = await db.SelectAsync(db.From<OpenAiChatTask>()
-                    .Where(x => x.CompletedDate != null && x.NotificationDate == null && x.Retries <= 3 && x.ReplyTo != null && x.Response != null));
+                    .Where(x => x.CompletedDate != null && x.Response != null && x.NotificationDate == null && x.Retries <= 3 && x.ReplyTo != null));
                     
                 foreach (var task in pendingNotifications)
                 {

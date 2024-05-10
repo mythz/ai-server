@@ -22,7 +22,9 @@ public class RequeueFailedTasksCommand(ILogger<RequeueFailedTasksCommand> log,
         var requeuedTasks = failedTasks.Map(x =>
         {
             var to = x.ConvertTo<OpenAiChatTask>();
-            to.StartedDate = x.CompletedDate = null;
+            if (to.Response == null)
+                x.CompletedDate = null;
+            to.StartedDate = null;
             to.Error = null;
             to.ErrorCode = null;
             to.Retries = 0;
