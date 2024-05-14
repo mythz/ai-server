@@ -63,7 +63,6 @@ public class PvqApiTests
                 new() { Model = "phi3", },
                 new() { Model = "mistral", },
                 new() { Model = "llama3:8b", },
-                new() { Model = "llama3:70b", },
                 new() { Model = "gemma", },
                 new() { Model = "codellama", },
                 new() { Model = "mixtral", },
