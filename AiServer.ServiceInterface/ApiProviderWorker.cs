@@ -213,11 +213,11 @@ public class ApiProviderWorker : IApiProviderWorker
                     });
 
                     var polling = 0;
-                    while (polling++ < 20 && ChatQueueCount == 0)
+                    while (polling++ < 10 && ChatQueueCount == 0)
                     {
-                        await Task.Delay(500, token);
+                        await Task.Delay(1000, token);
                     }
-                    log.LogInformation("[{Name}] has {Count} new Tasks assigned (poll:{Polls})...", 
+                    log.LogInformation("[{Name}] has {Count} new Tasks assigned after polling {Polled} times...", 
                         Name, ChatQueueCount, polling);
                 }
             }
