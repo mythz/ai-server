@@ -289,15 +289,9 @@ public class PvqApiTests
         api.ThrowIfError();
     }
 
-    private static async Task CreateApiKeysAndAuthProviders(JsonApiClient client)
+    private static async Task CreateAuthProviders(JsonApiClient client)
     {
         ClientConfig.UseSystemJson = UseSystemJson.Always;
-
-        foreach (var apiKey in TestUtils.ApiKeys)
-        {
-            client.Send(apiKey);
-        }
-        
         foreach (var createApiProvider in ApiProviders)
         {
             var api = await client.ApiAsync(createApiProvider);
@@ -305,18 +299,30 @@ public class PvqApiTests
         }
     }
 
+    private static async Task CreateApiKeys(JsonApiClient client)
+    {
+        ClientConfig.UseSystemJson = UseSystemJson.Always;
+
+        foreach (var apiKey in TestUtils.ApiKeys)
+        {
+            await client.ApiAsync(apiKey);
+        }
+    }
+
     [Test]
     public async Task Create_Local_ApiKeys_and_ApiProviders()
     {
         var client = TestUtils.CreateAuthSecretClient();
-        await CreateApiKeysAndAuthProviders(client);
+        await CreateApiKeys(client);
+        await CreateAuthProviders(client);
     }
 
     [Test]
     public async Task Create_Remote_ApiKeys_and_ApiProviders()
     {
         var client = TestUtils.CreatePublicAuthSecretClient();
-        await CreateApiKeysAndAuthProviders(client);
+        await CreateApiKeys(client);
+        await CreateAuthProviders(client);
     }
 
     [Test]

@@ -24,16 +24,19 @@ public static class TestUtils
         new() { UserId = "E24EFC4B-8743-4CF3-8904-4C0492B285E0", UserName = "supermicro" },
     ];
 
-    public static JsonApiClient CreateAuthSecretClient() => new(AiServerBaseUrl) {
-        Headers = {
-            [Keywords.AuthSecret] = Environment.GetEnvironmentVariable("AUTH_SECRET")
-        }
-    };
-    public static JsonApiClient CreatePublicAuthSecretClient() => new(PublicAiServerBaseUrl) {
-        Headers = {
-            [Keywords.AuthSecret] = Environment.GetEnvironmentVariable("AUTH_SECRET")
-        }
-    };
+    public static JsonApiClient CreateAuthSecretClient()
+    {
+        var client = new JsonApiClient(AiServerBaseUrl);
+        client.Headers![Keywords.AuthSecret] = Environment.GetEnvironmentVariable("AUTH_SECRET");
+        return client;
+    }
+
+    public static JsonApiClient CreatePublicAuthSecretClient()
+    {
+        var client = new JsonApiClient(PublicAiServerBaseUrl);
+        client.Headers![Keywords.AuthSecret] = Environment.GetEnvironmentVariable("AUTH_SECRET");
+        return client;
+    }
 
     public static JsonApiClient CreateSystemClient() => new(AiServerBaseUrl) {
         BearerToken = "ak-1359a079e98841a2a0c52419433d207f",
@@ -46,7 +49,7 @@ public static class TestUtils
     };
 
     public static JsonApiClient CreatePublicAdminClient() => new(PublicAiServerBaseUrl) {
-        BearerToken = "ak-4357089af5a446cab0fdc44830e03617",
+        BearerToken = Environment.GetEnvironmentVariable("AK_ADMIN"),
     };
 
     public static JsonApiClient PvqApiClient() => new(PvqBaseUrl) {
