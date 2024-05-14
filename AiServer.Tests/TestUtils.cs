@@ -53,6 +53,10 @@ public static class TestUtils
         UserName = Environment.GetEnvironmentVariable("PVQ_USERNAME"),
     };
     
+    public static JsonApiClient PublicPvqApiClient() => new(PublicAiServerBaseUrl) {
+        UserName = Environment.GetEnvironmentVariable("PVQ_USERNAME"),
+    };
+    
     public static string PvqUsername = Environment.GetEnvironmentVariable("PVQ_USERNAME") ?? "servicestack";
     public static string PvqPassword = Environment.GetEnvironmentVariable("PVQ_PASSWORD") ?? "p@55wOrd";
 

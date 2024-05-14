@@ -318,5 +318,15 @@ public class PvqApiTests
         var client = TestUtils.CreatePublicAuthSecretClient();
         await CreateApiKeysAndAuthProviders(client);
     }
-    
+
+    [Test]
+    public async Task Can_call_protected_API_with_AuthSecret()
+    {
+        var client = TestUtils.PublicPvqApiClient();
+
+        var api = await client.ApiAsync(new GetActiveProviders());
+        api.ThrowIfError();
+        
+        api.Response.PrintDump();
+    }
 }
