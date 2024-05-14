@@ -158,7 +158,7 @@ public class ApiProviderWorker : IApiProviderWorker
         try
         {
             using var db = await dbFactory.OpenDbConnectionAsync(token:token);
-            while (Executor.ExecuteOpenAiChatTasksCommand.Running)
+            while (Executor.ExecuteOpenAiChatTasksCommand.ShouldContinueRunning)
             {
                 if (ShouldStopRunning())
                     return;

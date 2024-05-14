@@ -10,9 +10,11 @@ public class ExecuteOpenAiChatTasksCommand(ILogger<ExecuteOpenAiChatTasksCommand
     IDbConnectionFactory dbFactory, IMessageProducer mq) 
     : IAsyncCommand<ExecuteTasks>
 {
-    public static long running = 0;
+    private static long running = 0;
     public static bool Running => Interlocked.Read(ref running) > 0;
     private static long counter = 0;
+
+    public static bool ShouldContinueRunning => Running && AppData.Instance.HasAnyChatTasksQueued();
     
     public async Task ExecuteAsync(ExecuteTasks request)
     {
