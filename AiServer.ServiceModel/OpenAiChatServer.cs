@@ -124,7 +124,7 @@ public class UpdateApiProvider : IPatchDb<ApiProvider>, IReturn<IdResponse>
 [ValidateAuthSecret]
 public class CreateApiKey : IPost, IReturn<CreateApiKeyResponse>
 {
-    public string Id { get; set; }
+    public string Key { get; set; }
     public string Name { get; set; }
     public string? UserId { get; set; }
     public string? UserName { get; set; }
@@ -136,7 +136,8 @@ public class CreateApiKey : IPost, IReturn<CreateApiKeyResponse>
 }
 public class CreateApiKeyResponse
 {
-    public string Id { get; set; }
+    public int Id { get; set; }
+    public string Key { get; set; }
     public string Name { get; set; }
     public string? UserId { get; set; }
     public string? UserName { get; set; }
