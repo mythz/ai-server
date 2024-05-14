@@ -115,9 +115,10 @@ public static class TestUtils
             ["claude-3-sonnet"] = "anthropic/claude-3-sonnet",
             ["claude-3-opus"] = "anthropic/claude-3-opus",
 
-            ["gemini-pro"] = "google/gemini-pro",
-            ["gemini-pro-1.5"] = "google/gemini-pro-1.5",
-            ["gemini-pro-vision"] = "google/gemini-pro-vision",
+            // Let Google Provider handle gemini-pro
+            // ["gemini-pro"] = "google/gemini-pro",
+            // ["gemini-pro-1.5"] = "google/gemini-pro-1.5",
+            // ["gemini-pro-vision"] = "google/gemini-pro-vision",
 
             ["gpt-3.5-turbo"] = "openai/gpt-3.5-turbo",
             ["gpt-4"] = "openai/gpt-4",
