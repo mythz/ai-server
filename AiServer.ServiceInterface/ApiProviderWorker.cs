@@ -218,7 +218,7 @@ public class ApiProviderWorker : IApiProviderWorker
                         await Task.Delay(1000, token);
                     }
                     log.LogInformation("[{Name}] has {Count} new Tasks assigned after polling {Polled} times...", 
-                        Name, ChatQueueCount, polling);
+                        Name, ChatQueueCount, polling-1);
                 }
             }
         }
