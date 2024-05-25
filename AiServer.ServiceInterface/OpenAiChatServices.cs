@@ -1,4 +1,5 @@
-﻿using AiServer.ServiceInterface.AppDb;
+﻿using System.Data;
+using AiServer.ServiceInterface.AppDb;
 using AiServer.ServiceModel;
 using AiServer.ServiceModel.Types;
 using Microsoft.AspNetCore.Http;
@@ -7,7 +8,6 @@ using ServiceStack;
 using ServiceStack.Data;
 using ServiceStack.Messaging;
 using ServiceStack.OrmLite;
-using OpenAiChatCompleted = AiServer.ServiceModel.Types.OpenAiChatCompleted;
 
 namespace AiServer.ServiceInterface;
 
@@ -298,4 +298,60 @@ public class OpenAiChatServices(
     {
         Results = appData.ApiProviderWorkers.Select(x => x.GetStats()).ToList()
     };
+
+    public async Task<object> Any(RerunCompletedTasks request)
+    {
+        var to = new RerunCompletedTasksResponse();
+        var q = Db.From<TaskSummary>()
+            .Where(x => request.Ids.Contains(x.Id))
+            .OrderBy(x => x.Id);
+
+        var connections = new Dictionary<string, IDbConnection>();
+        
+        var summaries = await Db.SelectAsync(q);
+        foreach (var summary in summaries)
+        {
+            var monthDb = dbFactory.GetNamedMonthDb(summary.CreatedDate);
+            var monthDbConn = connections.GetOrAdd(monthDb, db => HostContext.AppHost.GetDbConnection(db));
+            
+            var completedTask = await monthDbConn.SingleByIdAsync<OpenAiChatCompleted>(summary.Id);
+            if (completedTask == null)
+            {
+                to.Errors[summary.Id] = "Summary not found";
+            }
+            else
+            {
+                try
+                {
+                    var task = completedTask.ConvertTo<OpenAiChatTask>();
+                    task.CompletedDate = null;
+                    task.Error = null;
+                    task.ErrorCode = null;
+                    task.Response = null;
+                    task.NotificationDate = null;
+                    task.Retries = 0;
+                    task.DurationMs = 0;
+                    task.Worker = null;
+                    await Db.InsertAsync(task);
+                    await monthDbConn.DeleteByIdAsync<OpenAiChatCompleted>(summary.Id);
+                    to.Results.Add(summary.Id);
+                }
+                catch (Exception e)
+                {
+                    to.Errors[summary.Id] = e.Message;
+                }
+            }
+        }
+        
+        foreach (var entry in connections)
+        {
+            entry.Value.Dispose();
+        }
+        
+        mq.Publish(new QueueTasks {
+            DelegateOpenAiChatTasks = new()
+        });
+        
+        return to;
+    }
 }

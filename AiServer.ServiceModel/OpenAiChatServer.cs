@@ -170,3 +170,16 @@ public class WorkerStats
 
 [ValidateAuthSecret]
 public class QueryTaskSummary : QueryDb<TaskSummary> {}
+
+[ValidateAuthSecret]
+public class RerunCompletedTasks : IPost, IReturn<RerunCompletedTasksResponse>
+{
+    [Input(Type = "tag"), FieldCss(Field = "col-span-12")]
+    public List<long> Ids { get; set; }
+}
+public class RerunCompletedTasksResponse
+{
+    public Dictionary<long, string> Errors { get; set; } = new();
+    public List<long> Results { get; set; } = [];
+    public ResponseStatus? ResponseStatus { get; set; }
+}
