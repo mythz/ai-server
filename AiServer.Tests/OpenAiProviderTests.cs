@@ -56,6 +56,30 @@ public class OpenAiProviderTests
     }
 
     [Test]
+    public async Task Can_Send_Google_GeminiPro_PVQ_Request()
+    {
+        var openAi = factory.GetOpenAiProvider(nameof(GoogleOpenAiProvider));
+        var response = await openAi.ChatAsync(new ApiProviderWorker(TestUtils.GoogleApiProvider, factory), new OpenAiChat
+        {
+            Model = "gemini-pro",
+            Messages =
+            [
+                new() {
+                    Role = "system",
+                    Content = TestUtils.SystemPrompt,
+                },
+                new() {
+                    Role = "user",
+                    Content = "What is the capital of France?",
+                },
+            ],
+            MaxTokens = 100,
+        });
+        
+        response.PrintDump();
+    }
+
+    [Test]
     public async Task Can_detect_OpenRouterProvider_IsOnline()
     {
         var openAi = factory.GetOpenAiProvider();

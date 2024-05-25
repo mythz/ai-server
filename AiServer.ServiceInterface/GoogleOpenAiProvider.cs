@@ -69,38 +69,82 @@ public class GoogleOpenAiProvider(ILogger<GoogleOpenAiProvider> log) : IOpenAiPr
         
         return new(to, durationMs);
     }
-
+    
     private async Task<string> SendRequestAsync(IApiProviderWorker worker, OpenAiChat request, CancellationToken token)
     {
-        var url = worker.GetApiEndpointUrlFor(TaskType.OpenAiChat)
+        var baseUrl = worker.GetApiEndpointUrlFor(TaskType.OpenAiChat);
+        request.Model = worker.GetApiModel(request.Model);
+        var url = baseUrl.Replace("${MODEL}", request.Model)
             .AddQueryParam("key", worker.ApiKey);
         
-        var generationConfig = new Dictionary<string, object> {};
+        var generationConfig = new Dictionary<string, object>();
         if (request.Temperature != null)
             generationConfig["temperature"] = request.Temperature;
         if (request.MaxTokens != null)
             generationConfig["maxOutputTokens"] = request.MaxTokens;
 
+        var systemMessage = request.Messages.FirstOrDefault(x => "system".EqualsIgnoreCase(x.Role));
+        var messages = request.Messages
+            .Where(x => !"system".EqualsIgnoreCase(x.Role))
+            .Map(x => new Dictionary<string, object> {
+                ["role"] = "user".EqualsIgnoreCase(x.Role) ? "user" : "model",
+                ["parts"] = new List<object> {
+                    new Dictionary<string,string> {
+                        ["text"] = x.Content
+                    }
+                },
+            });
+        
         var googleRequest = new Dictionary<string, object>
         {
-            ["contents"] = new List<object> {
-                new Dictionary<string, object>
-                {
-                    ["parts"] = new List<object> {
-                        new Dictionary<string, object> {
-                            ["text"] = request.Messages[0].Content,
-                        }
-                    }
-                }
-            },
+            ["contents"] = messages,
             ["safetySettings"] = SafetySettings.Map(x => new Dictionary<string, object> {
                 ["category"] = x.Category,
                 ["threshold"] = x.Threshold,
             }),
-            ["generationConfig"] = generationConfig,
         };
+        if (generationConfig.Count > 0)
+        {
+            googleRequest["generationConfig"] = generationConfig;
+        }
+
+        if (systemMessage != null)
+        {
+            // Old gemini-pro before gemini-1.0-pro-002	doesn't support system prompts
+            if (request.Model.StartsWith("gemini-1.0"))
+            {
+                messages.Insert(0, new Dictionary<string, object> {
+                    ["role"] = "model",
+                    ["parts"] = new List<object> {
+                        new Dictionary<string,string> {
+                            ["text"] = "Understood."
+                        }
+                    }
+                });
+                messages.Insert(0, new Dictionary<string, object> {
+                    ["role"] = "user",
+                    ["parts"] = new List<object> {
+                        new Dictionary<string,string> {
+                            ["text"] = "System prompt: " + systemMessage.Content
+                        }
+                    }
+                });
+            }
+            else
+            {
+                googleRequest["systemInstruction"] = new Dictionary<string, object> {
+                    ["parts"] = new List<object> {
+                        new Dictionary<string,string> {
+                            ["text"] = systemMessage.Content
+                        }
+                    }
+                };
+            }
+        }
 
         var json = JSON.stringify(googleRequest);
+        Console.WriteLine(url);
+        Console.WriteLine(json);
         var responseJson = await url.PostJsonToUrlAsync(json, token:token);
         return responseJson;
     }

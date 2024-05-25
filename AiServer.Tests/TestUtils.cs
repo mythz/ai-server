@@ -9,7 +9,18 @@ public static class TestUtils
     public static string GetHostDir() => "../../../../AiServer";
     public static string GetQuestionsDir() => Path.GetFullPath("../../../../../pvq/questions");
 
-    public const string SystemPrompt = "You are a friendly AI Assistant that helps answer developer questions. Think step by step and assist the user with their question, ensuring that your answer is relevant, on topic and provides actionable advice with code examples as appropriate.";
+    public const string SystemPrompt = 
+        """
+        You are an IT expert helping a user with a technical issue.
+        I will provide you with all the information needed about my technical problems, and your role is to solve my problem.
+        You should use your computer science, network infrastructure, and IT security knowledge to solve my problem
+        using data from StackOverflow, Hacker News, and GitHub of content like issues submitted, closed issues,
+        number of stars on a repository, and overall StackOverflow activity.
+        Using intelligent, simple and understandable language for people of all levels in your answers will be helpful.
+        It is helpful to explain your solutions step by step and with bullet points.
+        Try to avoid too many technical details, but use them when necessary.
+        I want you to reply with the solution, not write any explanations.
+        """;
 
     public static string AiServerBaseUrl = "https://localhost:5005";
     public static string PvqBaseUrl = "https://localhost:5001";
@@ -155,13 +166,14 @@ public static class TestUtils
         ApiBaseUrl = "https://generativelanguage.googleapis.com",
         OpenAiProvider = "GoogleOpenAiProvider",
         TaskPaths = new() {
-            [TaskType.OpenAiChat] = "/v1beta/models/gemini-pro:generateContent",
+            [TaskType.OpenAiChat] =  "/v1beta/models/${MODEL}:generateContent",
         },
         ApiModels = new()
         {
-            ["gemini-pro"] = "gemini-pro",
-            ["gemini-pro-1.5"] = "gemini-pro-1.5",
-            ["gemini-pro-vision"] = "gemini-pro-vision",
+            ["gemini-pro"] = "gemini-1.0-pro-latest",
+            ["gemini-pro-1.5"] = "gemini-1.5-pro-001",
+            ["gemini-pro-vision"] = "gemini-1.0-pro-vision-latest",
+            ["gemini-flash"] = "gemini-1.5-flash-001",
         }
     };
     
@@ -196,6 +208,7 @@ public static class TestUtils
             new() { Model = "gemini-pro", },
             new() { Model = "gemini-pro-1.5", },
             new() { Model = "gemini-pro-vision", },
+            new() { Model = "gemini-flash", },
         ],
         ApiType = GoogleApiType
     };
