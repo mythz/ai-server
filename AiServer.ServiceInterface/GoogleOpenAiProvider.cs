@@ -143,8 +143,6 @@ public class GoogleOpenAiProvider(ILogger<GoogleOpenAiProvider> log) : IOpenAiPr
         }
 
         var json = JSON.stringify(googleRequest);
-        Console.WriteLine(url);
-        Console.WriteLine(json);
         var responseJson = await url.PostJsonToUrlAsync(json, token:token);
         return responseJson;
     }
