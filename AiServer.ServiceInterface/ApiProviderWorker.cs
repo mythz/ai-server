@@ -44,6 +44,7 @@ public class ApiProviderWorker : IApiProviderWorker
     private long running = 0;
     private readonly ApiProvider apiProvider;
     private readonly AiProviderFactory aiFactory;
+    private DateTime lastChatExecuted = DateTime.UtcNow;
 
     public ApiProviderWorker(ApiProvider apiProvider, AiProviderFactory aiFactory, CancellationToken token = default)
     {
@@ -219,6 +220,14 @@ public class ApiProviderWorker : IApiProviderWorker
                     }
                     log.LogInformation("[{Name}] has {Count} new Tasks assigned after polling {Polled} times...", 
                         Name, ChatQueueCount, polling-1);
+
+                    // Don't hold up ExecuteTasks if there are no more tasks to execute
+                    var timeSinceLastTask = DateTime.UtcNow - lastChatExecuted;
+                    if (ChatQueueCount == 0 && timeSinceLastTask > TimeSpan.FromMinutes(5))
+                    {
+                        log.LogInformation("[{Name}] hasn't executed a task in {TimeSinceLastTask}, exiting...", Name, timeSinceLastTask);
+                        return;
+                    }
                 }
             }
         }
@@ -237,6 +246,7 @@ public class ApiProviderWorker : IApiProviderWorker
             if (ShouldStopRunning())
                 return null;
 
+            lastChatExecuted = DateTime.UtcNow;
             var (response, durationMs) = await chatProvider.ChatAsync(this, task.Request, token);
 
             Interlocked.Increment(ref completed);
