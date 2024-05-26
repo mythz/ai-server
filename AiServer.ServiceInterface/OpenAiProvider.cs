@@ -63,7 +63,7 @@ public class OpenAiProvider(ILogger<OpenAiProvider> log) : IOpenAiProvider
                         sleepMs = retryAfter * 1000;
                     log.LogInformation("[{Name}] {Message} for {Url}, retrying after {SleepMs}ms", 
                         worker.Name, e.Message, openApiChatEndpoint, sleepMs);
-                    await Task.Delay(sleepMs);
+                    await Task.Delay(sleepMs, token);
                 }
                 else throw;
             }

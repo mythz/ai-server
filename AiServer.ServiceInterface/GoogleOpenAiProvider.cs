@@ -1,4 +1,5 @@
 ﻿using System.Diagnostics;
+using System.Net;
 using AiServer.ServiceModel;
 using Microsoft.Extensions.Logging;
 using ServiceStack;
@@ -142,9 +143,50 @@ public class GoogleOpenAiProvider(ILogger<GoogleOpenAiProvider> log) : IOpenAiPr
             }
         }
 
-        var json = JSON.stringify(googleRequest);
-        var responseJson = await url.PostJsonToUrlAsync(json, token:token);
-        return responseJson;
+        Exception? firstEx = null;
+        var retries = 0;
+        while (retries++ < 10)
+        {
+            var headers = Array.Empty<string>();
+            var contentHeaders = Array.Empty<string>();
+            int retryAfter = 0;
+            var sleepMs = 1000 * retries;
+
+            try
+            {
+                var json = JSON.stringify(googleRequest);
+                var responseJson = await url.PostJsonToUrlAsync(json, responseFilter: res =>
+                {
+                    headers = res.Headers.Select(x => $"{x.Key}: {x.Value.FirstOrDefault()}").ToArray();
+                    contentHeaders = res.Content.Headers.Select(x => $"{x.Key}: {x.Value.FirstOrDefault()}").ToArray();
+
+                    // if (res.Headers.TryGetValues("retry-after", out var retryAfterValues))
+                    // {
+                    //     var retryAfterStr = retryAfterValues.FirstOrDefault();
+                    //     log.LogWarning("retry-after: {RetryAfter}", retryAfterStr ?? "null");
+                    //     if (retryAfterStr != null) 
+                    //         int.TryParse(retryAfterStr, out retryAfter);
+                    // }
+                }, token: token);
+                return responseJson;
+            }
+            catch (HttpRequestException e)
+            {
+                log.LogInformation("[{Name}] Headers:\n{Headers}", worker.Name, string.Join('\n', headers));
+                log.LogInformation("[{Name}] Content Headers:\n{Headers}", worker.Name, string.Join('\n', contentHeaders));
+
+                firstEx ??= e;
+                if (e.StatusCode is null or HttpStatusCode.TooManyRequests or >= HttpStatusCode.InternalServerError)
+                {
+                    // if (retryAfter > 0)
+                    //     sleepMs = retryAfter * 1000;
+                    log.LogInformation("[{Name}] {Message} for {Url}, retrying after {SleepMs}ms", 
+                        worker.Name, e.Message, url, sleepMs);
+                    await Task.Delay(sleepMs, token);
+                }
+                else throw;
+            }
+        }
     }
 
     public async Task<bool> IsOnlineAsync(IApiProviderWorker worker, CancellationToken token = default)
