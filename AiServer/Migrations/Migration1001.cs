@@ -199,10 +199,12 @@ public class Migration1001 : MigrationBase
             new() { Name = "gemini-pro" },
             new() { Name = "gemini-pro-1.5" },
             new() { Name = "gemini-pro-vision" },
+            new() { Name = "gemini-flash" },
             new() { Name = "gpt-3.5-turbo" },
             new() { Name = "gpt-4" },
             new() { Name = "gpt-4-turbo" },
             new() { Name = "gpt-4-vision" },
+            new() { Name = "gpt-4o" },
             new() { Name = "claude-3-haiku" },
             new() { Name = "claude-3-sonnet" },
             new() { Name = "claude-3-opus" },
@@ -254,11 +256,13 @@ public class Migration1001 : MigrationBase
                 ["gemini-pro"] = "google/gemini-pro",
                 ["gemini-pro-1.5"] = "google/gemini-pro-1.5",
                 ["gemini-pro-vision"] = "google/gemini-pro-vision",
+                ["gemini-flash"] = "google/gemini-flash-1.5",
                 
                 ["gpt-3.5-turbo"] = "openai/gpt-3.5-turbo",
                 ["gpt-4"] = "openai/gpt-4",
                 ["gpt-4-turbo"] = "openai/gpt-4-turbo",
                 ["gpt-4-vision"] = "openai/gpt-4-vision-preview",
+                ["gpt-4o"] = "openai/gpt-4o",
             }
         });
         Db.Insert(new ApiType
@@ -311,9 +315,10 @@ public class Migration1001 : MigrationBase
             },
             ApiModels = new()
             {
-                ["gemini-pro"] = "gemini-pro",
-                ["gemini-pro-1.5"] = "gemini-pro-1.5",
-                ["gemini-pro-vision"] = "gemini-pro-vision",
+                ["gemini-pro"] = "gemini-1.0-pro-latest",
+                ["gemini-pro-1.5"] = "gemini-1.5-pro-001",
+                ["gemini-pro-vision"] = "gemini-1.0-pro-vision-latest",
+                ["gemini-flash"] = "gemini-1.5-flash-001",
             }
         });
     }
