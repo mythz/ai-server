@@ -187,6 +187,7 @@ public class GoogleOpenAiProvider(ILogger<GoogleOpenAiProvider> log) : IOpenAiPr
                 else throw;
             }
         }
+        throw firstEx ?? new Exception($"[{worker.Name}] Failed to complete Google Chat request after {retries} retries");
     }
 
     public async Task<bool> IsOnlineAsync(IApiProviderWorker worker, CancellationToken token = default)
