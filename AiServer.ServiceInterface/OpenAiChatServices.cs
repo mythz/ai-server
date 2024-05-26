@@ -326,6 +326,7 @@ public class OpenAiChatServices(
                     var task = completedTask.ConvertTo<OpenAiChatTask>();
                     task.CompletedDate = null;
                     task.Error = null;
+                    task.Provider = null;
                     task.ErrorCode = null;
                     task.Response = null;
                     task.NotificationDate = null;
