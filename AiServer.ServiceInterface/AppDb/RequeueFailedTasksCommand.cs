@@ -7,6 +7,7 @@ using ServiceStack.OrmLite;
 
 namespace AiServer.ServiceInterface.AppDb;
 
+[Tag(Tags.OpenAiChat)]
 public class RequeueFailedTasksCommand(ILogger<RequeueFailedTasksCommand> log, 
     IDbConnectionFactory dbFactory, IMessageProducer mq) : IAsyncCommand<SelectedTasks>
 {

@@ -14,6 +14,7 @@ public class ReserveOpenAiChatTask
     public int Take { get; set; }
 }
 
+[Tag(Tags.OpenAiChat)]
 public class ReserveOpenAiChatTaskCommand(ILogger<ReserveOpenAiChatTaskCommand> log, IDbConnection db, IMessageProducer mq) 
     : IAsyncCommand<ReserveOpenAiChatTask>
 {

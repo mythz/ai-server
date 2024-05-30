@@ -11,6 +11,7 @@ public class RequestOpenAiChatTasks
     public int Count { get; set; }
 }
 
+[Tag(Tags.OpenAiChat)]
 public class RequestOpenAiChatTasksCommand(ILogger<RequestOpenAiChatTasksCommand> log, AppData appData, IDbConnectionFactory dbFactory) 
     : IAsyncCommand<RequestOpenAiChatTasks>
 {

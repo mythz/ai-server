@@ -6,6 +6,7 @@ using AiServer.ServiceModel.Types;
 
 namespace AiServer.ServiceInterface.Executor;
 
+[Tag(Tags.Executor)]
 public class ExecutorPeriodicTasksCommand(ILogger<AppDbPeriodicTasksCommand> log, AppData appData, IMessageProducer mq) 
     : IAsyncCommand<PeriodicTasks>
 {

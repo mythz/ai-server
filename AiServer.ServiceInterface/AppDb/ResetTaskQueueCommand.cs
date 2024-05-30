@@ -6,6 +6,8 @@ using ServiceStack.OrmLite;
 namespace AiServer.ServiceInterface.AppDb;
 
 public class ResetTaskQueue {}
+
+[Tag(Tags.OpenAiChat)]
 public class ResetTaskQueueCommand(IDbConnection db, IMessageProducer mq) : IAsyncCommand<ResetTaskQueue>
 {
     public long Reset { get; set; }

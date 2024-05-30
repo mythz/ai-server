@@ -6,6 +6,7 @@ using ServiceStack.OrmLite;
 
 namespace AiServer.ServiceInterface.AppDb;
 
+[Tag(Tags.OpenAiChat)]
 public class FailOpenAiChatCommand(IDbConnectionFactory dbFactory) : IAsyncCommand<FailOpenAiChat>
 {
     public async Task ExecuteAsync(FailOpenAiChat request)

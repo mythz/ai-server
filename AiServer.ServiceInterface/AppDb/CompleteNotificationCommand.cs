@@ -15,6 +15,7 @@ public class CompleteNotification
     public ResponseStatus? Error { get; set; }
 }
 
+[Tag(Tags.OpenAiChat)]
 public class CompleteNotificationCommand(ILogger<CompleteNotificationCommand> log, IDbConnectionFactory dbFactory) : IAsyncCommand<CompleteNotification>
 {
     public async Task ExecuteAsync(CompleteNotification request)

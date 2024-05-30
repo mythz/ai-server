@@ -9,6 +9,7 @@ using AiServer.ServiceModel.Types;
 
 namespace AiServer.ServiceInterface.AppDb;
 
+[Tag(Tags.OpenAiChat)]
 public class CreateOpenAiChatTaskCommand(ILogger<CreateOpenAiChatTaskCommand> log, IDbConnection db, IMessageProducer mq) 
     : IAsyncCommand<OpenAiChatTask>
 {

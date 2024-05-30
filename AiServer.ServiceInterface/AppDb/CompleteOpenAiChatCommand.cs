@@ -6,6 +6,7 @@ using AiServer.ServiceModel.Types;
 
 namespace AiServer.ServiceInterface.AppDb;
 
+[Tag(Tags.OpenAiChat)]
 public class CompleteOpenAiChatCommand(IDbConnection db) : IAsyncCommand<CompleteOpenAiChat>
 {
     public async Task ExecuteAsync(CompleteOpenAiChat request)

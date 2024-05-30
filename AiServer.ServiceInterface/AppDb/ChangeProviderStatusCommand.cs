@@ -1,9 +1,9 @@
 using System.Data;
+using AiServer.ServiceModel;
 using ServiceStack;
 using ServiceStack.OrmLite;
-using AiServer.ServiceModel;
 
-namespace AiServer.ServiceInterface;
+namespace AiServer.ServiceInterface.AppDb;
 
 public class ChangeProviderStatus
 {
@@ -11,6 +11,7 @@ public class ChangeProviderStatus
     public DateTime? OfflineDate { get; set; }
 }
 
+[Tag(Tags.Database)]
 public class ChangeProviderStatusCommand(AppData appData, IDbConnection db) : IAsyncCommand<ChangeProviderStatus>
 {
     public async Task ExecuteAsync(ChangeProviderStatus request)

@@ -8,6 +8,7 @@ using ServiceStack.Messaging;
 
 namespace AiServer.ServiceInterface.AppDb;
 
+[Tag(Tags.Database)]
 public class AppDbPeriodicTasksCommand(ILogger<AppDbPeriodicTasksCommand> log, AppData appData, IMessageProducer mq, ICommandExecutor executor) 
     : IAsyncCommand<PeriodicTasks>
 {

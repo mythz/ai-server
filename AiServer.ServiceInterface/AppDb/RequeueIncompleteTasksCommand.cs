@@ -6,6 +6,8 @@ using ServiceStack.OrmLite;
 namespace AiServer.ServiceInterface.AppDb;
 
 public class RequeueIncompleteTasks {}
+
+[Tag(Tags.OpenAiChat)]
 public class RequeueIncompleteTasksCommand(IDbConnection db, IMessageProducer mq) : IAsyncCommand<RequeueIncompleteTasks>
 {
     public long Requeued { get; set; }

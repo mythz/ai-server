@@ -16,6 +16,7 @@ public class NotificationRequest
     public CompleteNotification? CompleteNotification { get; set; }
 }
 
+[Tag(Tags.Notifications)]
 public class NotificationRequestCommand(ILogger<NotificationRequestCommand> log, IMessageProducer mq) : IAsyncCommand<NotificationRequest>
 {
     public async Task ExecuteAsync(NotificationRequest request)

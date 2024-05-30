@@ -10,6 +10,8 @@ using ServiceStack.OrmLite;
 namespace AiServer.ServiceInterface.Queue;
 
 public class DelegateOpenAiChatTasks {}
+
+[Tag(Tags.OpenAiChat)]
 public class DelegateOpenAiChatTasksCommand(ILogger<DelegateOpenAiChatTasksCommand> log, AppData appData, 
     IDbConnectionFactory dbFactory, IMessageProducer mq) : IAsyncCommand<DelegateOpenAiChatTasks>
 {

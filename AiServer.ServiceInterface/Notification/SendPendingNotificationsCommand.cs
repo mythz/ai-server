@@ -10,6 +10,7 @@ namespace AiServer.ServiceInterface.Notification;
 
 public class SendPendingNotifications {}
 
+[Tag(Tags.Notifications)]
 public class SendPendingNotificationsCommand(ILogger<SendPendingNotificationsCommand> log, AppData appData, 
     IDbConnectionFactory dbFactory, IMessageProducer mq) 
     : IAsyncCommand<SendPendingNotifications>

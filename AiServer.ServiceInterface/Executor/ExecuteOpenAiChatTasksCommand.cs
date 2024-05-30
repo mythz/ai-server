@@ -6,6 +6,8 @@ using ServiceStack.Messaging;
 namespace AiServer.ServiceInterface.Executor;
 
 public class ExecuteTasks {}
+
+[Tag(Tags.Executor)]
 public class ExecuteOpenAiChatTasksCommand(ILogger<ExecuteOpenAiChatTasksCommand> log, AppData appData, 
     IDbConnectionFactory dbFactory, IMessageProducer mq) 
     : IAsyncCommand<ExecuteTasks>
