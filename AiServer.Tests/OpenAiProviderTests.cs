@@ -36,6 +36,27 @@ public class OpenAiProviderTests
     }
 
     [Test]
+    public async Task Can_Send_Ollama_Qwen2_Request()
+    {
+        var openAi = factory.GetOpenAiProvider();
+        var response = await openAi.ChatAsync(new ApiProviderWorker(TestUtils.OpenRouterProvider, factory), new OpenAiChat
+        {
+            Model = "qwen2:72b",
+            Messages =
+            [
+                new()
+                {
+                    Role = "user",
+                    Content = "What is the capital of France?",
+                }
+            ],
+            MaxTokens = 100,
+        });
+        
+        response.PrintDump();
+    }
+
+    [Test]
     public async Task Can_Send_Google_GeminiPro_Request()
     {
         var openAi = factory.GetOpenAiProvider(nameof(GoogleOpenAiProvider));
