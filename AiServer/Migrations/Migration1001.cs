@@ -183,6 +183,7 @@ public class Migration1001 : MigrationBase
             new() { Name = "qwen:4b", Parameters = "4B" },
             new() { Name = "qwen:72b", Parameters = "72B" },
             new() { Name = "qwen:110b", Parameters = "110B" },
+            new() { Name = "qwen2:72b", Parameters = "72B" },
             new() { Name = "codellama", Parameters = "7B" },
             new() { Name = "llama3:8b", Parameters = "8B" },
             new() { Name = "llama3:70b", Parameters = "70B" },

@@ -265,4 +265,41 @@ public static class TestUtils
         ApiType = GroqApiType,
     };
 
+    public static ApiType MistralApiType = new()
+    {
+        Id = 4,
+        Name = "mistral",
+        Website = "https://mistral.ai",
+        ApiBaseUrl = "https://api.mistral.ai",
+        TaskPaths = new() {
+            [TaskType.OpenAiChat] = "/v1/chat/completions",
+        },
+        HeartbeatUrl = "https://api.mistral.ai/models",
+        ApiModels = new()
+        {
+            ["mistral"] = "open-mistral-7b",
+            ["mixtral"] = "open-mixtral-8x7b",
+            ["mixtral:8x22b"] = "open-mixtral-8x22b",
+            ["mistral-small"] = "mistral-small-latest",
+            ["mistral-large"] = "mistral-large-latest",
+            ["mistral-embed"] = "mistral-embed",
+            ["codestral"] = "codestral-latest",
+        }
+    };
+
+    public static ApiProvider MistralProvider = new()
+    {
+        Name = "mistral",
+        ApiTypeId = 4,
+        ApiKey = Environment.GetEnvironmentVariable("MISTRAL_API_KEY"),
+        Concurrency = 1,
+        Priority = 2,
+        Enabled = true,
+        Models =
+        [
+            new() { Model = "codestral" },
+        ],
+        ApiType = MistralApiType,
+    };
+
 }
