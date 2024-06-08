@@ -118,6 +118,7 @@ public static class TestUtils
             ["mistral-small"] = "mistralai/mistral-small",
             ["mistral-large"] = "mistralai/mistral-large",
             ["dbrx"] = "databricks/dbrx-instruct",
+            ["qwen2:72b"] = "qwen/qwen-2-72b-instruct",
 
             ["command-r"] = "cohere/command-r",
             ["command-r-plus"] = "cohere/command-r-plus",
@@ -231,6 +232,7 @@ public static class TestUtils
             new() { Model = "mistral-small", },
             new() { Model = "mistral-large", },
             new() { Model = "dbrx", },
+            new() { Model = "qwen2:72b", },
             new() { Model = "command-r", },
             new() { Model = "command-r-plus", },
             new() { Model = "claude-3-haiku", },
