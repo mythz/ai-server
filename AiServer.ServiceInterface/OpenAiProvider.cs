@@ -26,6 +26,7 @@ public class OpenAiProvider(ILogger<OpenAiProvider> log) : IOpenAiProvider
         {
             var headers = Array.Empty<string>();
             var contentHeaders = Array.Empty<string>();
+            string? errorResponse = null;
                 
             int retryAfter = 0;
             var sleepMs = 1000 * retries;
@@ -46,6 +47,11 @@ public class OpenAiProvider(ILogger<OpenAiProvider> log) : IOpenAiProvider
                             if (retryAfterStr != null) 
                                 int.TryParse(retryAfterStr, out retryAfter);
                         }
+
+                        if (res.StatusCode >= HttpStatusCode.BadRequest)
+                        {
+                            errorResponse = res.Content.ReadAsString();
+                        }
                     }, token: token);
                 var durationMs = (int)sw.ElapsedMilliseconds;
                 var response = responseJson.FromJson<OpenAiChatResponse>();
@@ -55,6 +61,10 @@ public class OpenAiProvider(ILogger<OpenAiProvider> log) : IOpenAiProvider
             {
                 log.LogInformation("[{Name}] Headers:\n{Headers}", worker.Name, string.Join('\n', headers));
                 log.LogInformation("[{Name}] Content Headers:\n{Headers}", worker.Name, string.Join('\n', contentHeaders));
+                if (!string.IsNullOrEmpty(errorResponse))
+                {
+                    log.LogError("[{Name}] Error Response:\n{ErrorResponse}", worker.Name, errorResponse);
+                }
 
                 firstEx ??= e;
                 if (e.StatusCode is null or HttpStatusCode.TooManyRequests or >= HttpStatusCode.InternalServerError)

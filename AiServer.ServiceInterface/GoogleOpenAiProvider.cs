@@ -151,6 +151,7 @@ public class GoogleOpenAiProvider(ILogger<GoogleOpenAiProvider> log) : IOpenAiPr
             var contentHeaders = Array.Empty<string>();
             int retryAfter = 0;
             var sleepMs = 1000 * retries;
+            string? errorResponse = null;
 
             try
             {
@@ -167,6 +168,11 @@ public class GoogleOpenAiProvider(ILogger<GoogleOpenAiProvider> log) : IOpenAiPr
                     //     if (retryAfterStr != null) 
                     //         int.TryParse(retryAfterStr, out retryAfter);
                     // }
+                    if (res.StatusCode >= HttpStatusCode.BadRequest)
+                    {
+                        errorResponse = res.Content.ReadAsString();
+                    }
+                    
                 }, token: token);
                 return responseJson;
             }
@@ -174,6 +180,10 @@ public class GoogleOpenAiProvider(ILogger<GoogleOpenAiProvider> log) : IOpenAiPr
             {
                 log.LogInformation("[{Name}] Headers:\n{Headers}", worker.Name, string.Join('\n', headers));
                 log.LogInformation("[{Name}] Content Headers:\n{Headers}", worker.Name, string.Join('\n', contentHeaders));
+                if (!string.IsNullOrEmpty(errorResponse))
+                {
+                    log.LogError("[{Name}] Error Response:\n{ErrorResponse}", worker.Name, errorResponse);
+                }
 
                 firstEx ??= e;
                 if (e.StatusCode is null or HttpStatusCode.TooManyRequests or >= HttpStatusCode.InternalServerError)
