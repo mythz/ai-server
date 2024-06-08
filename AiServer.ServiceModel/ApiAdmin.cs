@@ -108,13 +108,13 @@ public class CreateApiModel : ICreateDb<ApiModel>, IReturn<IdResponse>
 {
     public string Name { get; set; }
 
+    public string? Parameters { get; set; }
+
     public string? Website { get; set; }
     
-    public int? Parameters { get; set; }
-
     public int? ContextSize { get; set; }
 
-    public int? Experts { get; set; }
+    public string? Developer { get; set; }
     
     public string? Notes { get; set; }
 }
