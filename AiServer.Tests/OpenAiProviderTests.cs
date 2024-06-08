@@ -2,6 +2,7 @@
 using AiServer.ServiceModel;
 using Microsoft.Extensions.Logging.Abstractions;
 using NUnit.Framework;
+using ServiceStack;
 using ServiceStack.Text;
 
 namespace AiServer.Tests;
@@ -77,6 +78,42 @@ public class OpenAiProviderTests
         });
         
         response.PrintDump();
+    }
+
+    [Test]
+    public async Task Can_execute_codestral_task()
+    {
+        var model = "codestral";
+
+        var openAi = factory.GetOpenAiProvider();
+        var response = await openAi.ChatAsync(new ApiProviderWorker(TestUtils.MistralProvider, factory), new OpenAiChat
+        {
+            Model = model,
+            Messages =
+            [
+                new()
+                {
+                    Role = "user",
+                    Content = "Write a fibonacci program in C#",
+                }
+            ],
+            TopP = 0.7,
+            MaxTokens = 1024,
+        });
+        
+        response.PrintDump();
+    }
+
+    [Test]
+    public void List_Google_Gemini_Models()
+    {
+        // API Docs: https://ai.google.dev/api/rest/v1beta/models/list
+        var url = "https://generativelanguage.googleapis.com/v1beta/models"
+            .AddQueryParam("key", TestUtils.GoogleApiProvider.ApiKey);
+
+        var json = url.GetJsonFromUrl();
+        var obj = JSON.parse(json);
+        json.Print();
     }
 
     [Test]
