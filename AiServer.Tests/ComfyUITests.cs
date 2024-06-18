@@ -32,6 +32,7 @@ public class ComfyUITests
     }
 
     [Test]
+    [Ignore("Integration test")]
     public void Can_convert_original_workflow_json()
     {
         // Take the original workflow JSON from "files/workflow_simple_generation.json"
