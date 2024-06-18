@@ -28,4 +28,11 @@
     </None>
   </ItemGroup>
 
+  <ItemGroup>
+    <None Remove="files\workflow_simple_generation.json" />
+    <Content Include="files\workflow_simple_generation.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
+
 </Project>
