@@ -87,11 +87,19 @@ public static class ComfyUiExtensions
         var apiNodes = new JObject();
         var nodeOutputs = new JObject();
         
-        if(!workflow.TryGetValue("links", out var value))
+        // `links` contains an array of links between nodes.
+        // Each link is an array with the following elements:
+        // 0: link id - Usually just incrementing integers
+        // 1: source node id
+        // 2: source slot id
+        // 3: destination node id
+        // 4: destination slot id
+        // 5: link type - eg 'MODEL', 'CLIP', etc. The UI uses this to match valid input/output pairs.
+        if(!workflow.TryGetValue("links", out var allLinks))
             throw new Exception("Invalid workflow JSON");
 
         // Map node outputs
-        foreach (var jToken in (JArray)value)
+        foreach (var jToken in (JArray)allLinks)
         {
             var link = (JArray)jToken;
             var srcNodeId = link[1].ToString();
@@ -105,6 +113,20 @@ public static class ComfyUiExtensions
             nodeOutputs[srcNodeId]![srcSlot.ToString()] = new JArray { destNodeId, destSlot };
         }
         
+        // `nodes` contains an array of nodes. These represent steps along the workflow where processing is done.
+        // Each node is an object with the following properties:
+        // id: node id - Unique identifier for the node
+        // type: node type - The type of node. This is used to determine what processing is done at this step.
+        // inputs: array of inputs which can be either links from other node outputs or widget values set on the node
+        // widgets_values: array of values set on the node. These are used when the node is not connected to any other nodes.
+        // - wigets_values are index sensitive. The order of the values in the array is important.
+        // - A node type is defined in the `object_info` endpoint. This endpoint returns metadata about the node type.
+        // - A node type metadata contains a `required` object which lists required inputs for the node type.
+        // - The order of the keys in the `required` object is the order in which the inputs should be set in the `widgets_values` array.
+        // - The inputs that come from other nodes can be populated first since they are not index sensitive.
+        // - The `seed` input is a special case. This is due to a few nodes have a seed value where behaviour is on the client side.
+        // - The `control_after_generate` input value is in the `widgets_values` array but is not used in the API.
+        // - This value always comes after the `seed` value, so we need to skip it when assigning values from the workflow to API format.
         if(!workflow.TryGetValue("nodes", out var workflowNodes))
             throw new Exception("Invalid workflow JSON");
 
@@ -140,7 +162,7 @@ public static class ComfyUiExtensions
                         var inputNode = ((JArray)node["inputs"]).FirstOrDefault(x => (string)x["name"] == propName);
                         var srcNodeId = inputNode["link"].ToString();
                         var linkVals =
-                            ((JArray)workflow["links"]).FirstOrDefault(x => (int)x[0] == int.Parse(srcNodeId));
+                            ((JArray)allLinks).FirstOrDefault(x => (int)x[0] == int.Parse(srcNodeId));
                         Console.WriteLine(linkVals.ToString());
                         apiNode["inputs"][propName] = new JArray() { linkVals[1].ToString(), linkVals[2] };
                     }
@@ -175,15 +197,9 @@ public static class ComfyUiExtensions
             var response = BaseUrl.CombineWith($"/object_info/{classType}").GetJsonFromUrl();
             var respObject = JObject.Parse(response);
 
-            if (respObject.ContainsKey(classType))
+            if (respObject.TryGetValue(classType, out var value))
             {
-                var metadata = (JObject)respObject[classType];
-                var required = metadata.ContainsKey("required") ? metadata : new JObject();
-
-                if (required.ContainsKey("seed"))
-                    metadata["control_after_generate"] = true;
-
-                MetadataMapping[classType] = metadata;
+                MetadataMapping[classType] = (JObject)value;
             }
         }
     }
