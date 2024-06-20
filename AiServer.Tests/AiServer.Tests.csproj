@@ -33,6 +33,10 @@
     <Content Include="files\workflow_simple_generation.json">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
+    <None Remove="files\workflow_template_txt2img.json" />
+    <Content Include="files\workflow_template_txt2img.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
   </ItemGroup>
 
 </Project>

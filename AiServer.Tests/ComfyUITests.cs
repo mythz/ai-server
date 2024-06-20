@@ -1,5 +1,6 @@
+using System.Text.Json;
+using System.Text.Json.Nodes;
 using AiServer.ServiceModel;
-using Newtonsoft.Json.Linq;
 using NUnit.Framework;
 using ServiceStack;
 
@@ -41,6 +42,8 @@ public class ComfyUITests
         // Convert the workflow JSON to API JSON
         var apiJson = rawWorkflow.ConvertWorkflowToApi();
         
+        File.WriteAllText("files/api_simple_generation.json", apiJson);
+        
         // Assert that the API JSON is not null
         Assert.That(apiJson, Is.Not.Null);
         
@@ -48,44 +51,163 @@ public class ComfyUITests
         Assert.That(apiJson, Is.Not.Empty);
         
         // Convert to JObject
-        var apiData = JObject.Parse(apiJson);
+        var apiData = JsonNode.Parse(apiJson);
         Assert.That(apiData, Is.Not.Null);
-        Assert.That(apiData.ContainsKey("prompt"), Is.True);
         Assert.That(apiData["prompt"], Is.Not.Null);
-        Assert.That(apiData["prompt"].Children().Count(), Is.GreaterThan(0));
-        Assert.That(apiData["prompt"].Children().Count(), Is.EqualTo(7));
-        var prompt = apiData["prompt"] as JObject;
+        Assert.That(apiData["prompt"].AsObject().Count, Is.GreaterThan(0));
+        Assert.That(apiData["prompt"].AsObject().Count, Is.EqualTo(7));
+        var prompt = apiData["prompt"].AsObject();
         Assert.That(prompt, Is.Not.Null);
         Assert.That(prompt.ContainsKey("10"), Is.True);
         Assert.That(prompt["10"], Is.Not.Null);
-        var imageNode = prompt["10"] as JObject;
+        var imageNode = prompt["10"].AsObject();
         Assert.That(imageNode, Is.Not.Null);
         Assert.That(imageNode.ContainsKey("class_type"), Is.True);
-        Assert.That(imageNode["class_type"].Value<string>(), Is.EqualTo("PreviewImage"));
+        Assert.That(imageNode["class_type"].GetValue<string>(), Is.EqualTo("PreviewImage"));
         Assert.That(imageNode.ContainsKey("inputs"), Is.True);
-        var inputs = imageNode["inputs"] as JObject;
+        var inputs = imageNode["inputs"].AsObject();
         Assert.That(inputs, Is.Not.Null);
         Assert.That(inputs.ContainsKey("images"), Is.True);
-        var images = inputs["images"] as JArray;
+        var images = inputs["images"].AsArray();
         Assert.That(images, Is.Not.Null);
         Assert.That(images.Count, Is.EqualTo(2));
-        Assert.That(images[0].Value<string>(), Is.EqualTo("8"));
-        Assert.That(images[1].Value<int>(), Is.EqualTo(0));
+        Assert.That(images[0].GetValue<string>(), Is.EqualTo("8"));
+        Assert.That(images[1].GetValue<int>(), Is.EqualTo(0));
     }
+
+    [Test]
+    [Ignore("Integration test")]
+    public void Can_fetch_all_models_from_ComfyUI()
+    {
+        var response = "http://localhost:7861/engines/list".GetJsonFromUrl();
+        
+        // Assert that the response is not null
+        Assert.That(response, Is.Not.Null);
+        /*
+         *  [
+             {
+               "description": "Stability-AI Stable Diffusion v1.6",
+               "id": "stable-diffusion-v1-6",
+               "name": "Stable Diffusion v1.6",
+               "type": "PICTURE"
+             },
+             {
+               "description": "Stability-AI Stable Diffusion XL v1.0",
+               "id": "stable-diffusion-xl-1024-v1-0",
+               "name": "Stable Diffusion XL v1.0",
+               "type": "PICTURE"
+             }
+           ]
+         */
+        var models = response.FromJson<List<StableDiffusionEngine>>();
+        Assert.That(models, Is.Not.Null);
+        Assert.That(models.Count, Is.GreaterThan(0));
+    }
+
+    [Test]
+    public void Can_use_StableDiffusionTextToImage_to_template_workflow()
+    {
+        // Load template
+        var template = System.IO.File.ReadAllText("files/workflow_template_txt2img.json");
+        
+        // Init test DTO
+        var testDto = new StableDiffusionTextToImage
+        {
+            CfgScale = 8,
+            Seed = Random.Shared.NextInt64(),
+            Height = 512,
+            Width = 512,
+            Sampler = "K_DPM_2_ANCESTRAL",
+            Samples = 1,
+            Steps = 20,
+            TextPrompts = new List<TextPrompt>
+            {
+                new() { Text = "A beautiful sunset over the ocean", Weight = 1 }
+            }
+        };
+        
+        // Convert template to JSON
+        var jsonTemplate = ComfyUiExtensions.ReplacePlaceholdersInJson(template,new Dictionary<string, object>
+        {
+            { "CfgScale", testDto.CfgScale.ToString() },
+            { "Height", testDto.Height.ToString() },
+            { "Width", testDto.Width.ToString() },
+            { "Sampler", testDto.Sampler },
+            { "Samples", testDto.Samples.ToString() },
+            { "Steps", testDto.Steps.ToString() },
+            { "Seed", testDto.Seed},
+            { "TextPrompts", testDto.TextPrompts.Select(x => x.Text).Join(",") }
+        });
+        
+        // Assert that the JSON template is not null
+        Assert.That(jsonTemplate, Is.Not.Null);
+        // Assert that values are present in the JSON after templating
+        Assert.That(jsonTemplate.Contains("A beautiful sunset over the ocean"), Is.True);
+        // Parse and check nodes
+        var populatedWorkflow = JsonNode.Parse(jsonTemplate);
+        Assert.That(populatedWorkflow, Is.Not.Null);
+        Assert.That(populatedWorkflow["nodes"], Is.Not.Null);
+        Assert.That(populatedWorkflow["nodes"].AsArray().Count, Is.GreaterThan(0));
+        Assert.That(populatedWorkflow["nodes"].AsArray().Count, Is.EqualTo(7));
+        var nodes = populatedWorkflow["nodes"].AsArray();
+        Assert.That(nodes, Is.Not.Null);
+        Assert.That(nodes[0].GetValueKind(), Is.EqualTo(JsonValueKind.Object));
+    }
+}
+
+
+/// <summary>
+/// Text To Image Request to Match Stability AI API
+/// </summary>
+public class StableDiffusionTextToImage
+{
+    public long Seed { get; set; }
+    public int CfgScale { get; set; }
+    public int Height { get; set; }
+    public int Width { get; set; }
+    public string Sampler { get; set; }
+    public int Samples { get; set; }
+    public int Steps { get; set; }
+    public List<TextPrompt> TextPrompts { get; set; }
+}
+
+public class TextPrompt
+{
+    public string Text { get; set; }
+    public int Weight { get; set; }
+}
+
+/// <summary>
+/// Engine DTO
+/// </summary>
+public class StableDiffusionEngine
+{
+    public string Description { get; set; }
+    public string Id { get; set; }
+    public string Name { get; set; }
+    public string Type { get; set; }
 }
 
 public static class ComfyUiExtensions
 {
     const string BaseUrl = "http://localhost:7861";
-    static readonly JObject MetadataMapping = new();
+    static readonly Dictionary<string, JsonObject> MetadataMapping = new();
+    
+    public static string ReplacePlaceholdersInJson(string jsonTemplate, Dictionary<string, object> replacements)
+    {
+        foreach (var replacement in replacements)
+        {
+            jsonTemplate = jsonTemplate.Replace($"{{{replacement.Key}}}", replacement.Value.ToJson());
+        }
 
+        return jsonTemplate;
+    }
 
     public static string ConvertWorkflowToApi(this string rawWorkflow)
     {
-        var workflow = JObject.Parse(rawWorkflow);
-
-        var apiNodes = new JObject();
-        var nodeOutputs = new JObject();
+        var workflow = JsonNode.Parse(rawWorkflow).AsObject();
+        var apiNodes = new JsonObject();
+        var nodeOutputs = new JsonObject();
         
         // `links` contains an array of links between nodes.
         // Each link is an array with the following elements:
@@ -95,22 +217,20 @@ public static class ComfyUiExtensions
         // 3: destination node id
         // 4: destination slot id
         // 5: link type - eg 'MODEL', 'CLIP', etc. The UI uses this to match valid input/output pairs.
-        if(!workflow.TryGetValue("links", out var allLinks))
+        if (!workflow.TryGetPropertyValue("links", out var allLinks))
             throw new Exception("Invalid workflow JSON");
 
         // Map node outputs
-        foreach (var jToken in (JArray)allLinks)
+        foreach (var jToken in allLinks.AsArray())
         {
-            var link = (JArray)jToken;
+            var link = jToken.AsArray();
             var srcNodeId = link[1].ToString();
             var srcSlot = (int)link[2];
             var destNodeId = link[3].ToString();
             var destSlot = (int)link[4];
-
             if (!nodeOutputs.ContainsKey(srcNodeId))
-                nodeOutputs[srcNodeId] = new JObject();
-
-            nodeOutputs[srcNodeId]![srcSlot.ToString()] = new JArray { destNodeId, destSlot };
+                nodeOutputs[srcNodeId] = new JsonObject();
+            nodeOutputs[srcNodeId]![srcSlot.ToString()] = new JsonArray { destNodeId, destSlot };
         }
         
         // `nodes` contains an array of nodes. These represent steps along the workflow where processing is done.
@@ -127,67 +247,58 @@ public static class ComfyUiExtensions
         // - The `seed` input is a special case. This is due to a few nodes have a seed value where behaviour is on the client side.
         // - The `control_after_generate` input value is in the `widgets_values` array but is not used in the API.
         // - This value always comes after the `seed` value, so we need to skip it when assigning values from the workflow to API format.
-        if(!workflow.TryGetValue("nodes", out var workflowNodes))
+        if (!workflow.TryGetPropertyValue("nodes", out var workflowNodes))
             throw new Exception("Invalid workflow JSON");
 
         // Convert nodes
-        foreach (var jToken in (JArray)workflowNodes)
+        foreach (var jToken in workflowNodes.AsArray())
         {
-            var node = (JObject)jToken;
-            if(node == null)
+            var node = jToken.AsObject();
+            if (node == null)
                 throw new Exception("Invalid workflow JSON");
-            if(!node.TryGetValue("id", out var idToken))
+            if (!node.TryGetPropertyValue("id", out var idToken))
                 throw new Exception("Invalid workflow JSON");
-            
             var nodeId = idToken.ToString();
             var classType = node["type"].ToString();
-
             AddToMapping(classType);
 
-            var apiNode = new JObject();
+            var apiNode = new JsonObject();
             apiNode["class_type"] = classType;
-            apiNode["inputs"] = new JObject();
-
+            apiNode["inputs"] = new JsonObject();
             if (MetadataMapping.TryGetValue(classType, out var currentClass))
             {
-                var requiredMetadata = (JObject)currentClass["input"]["required"];
+                var requiredMetadata = currentClass["input"]!["required"]!.AsObject();
                 var widgetIndex = 0;
-
                 foreach (var prop in requiredMetadata)
                 {
                     var propName = prop.Key;
-
-                    if (node.ContainsKey("inputs") && ((JArray)node["inputs"]).Any(x => (string)x["name"] == propName))
+                    if (node.ContainsKey("inputs") && node["inputs"]!.AsArray().Any(x => x["name"]!.ToString() == propName))
                     {
-                        var inputNode = ((JArray)node["inputs"]).FirstOrDefault(x => (string)x["name"] == propName);
-                        var srcNodeId = inputNode["link"].ToString();
-                        var linkVals =
-                            ((JArray)allLinks).FirstOrDefault(x => (int)x[0] == int.Parse(srcNodeId));
+                        var inputNode = node["inputs"]!.AsArray().FirstOrDefault(x => x["name"]!.ToString() == propName);
+                        var srcNodeId = inputNode!["link"]!.ToString();
+                        var linkVals = allLinks.AsArray().FirstOrDefault(x => (int)x[0] == int.Parse(srcNodeId));
                         Console.WriteLine(linkVals.ToString());
-                        apiNode["inputs"][propName] = new JArray() { linkVals[1].ToString(), linkVals[2] };
+                        apiNode["inputs"][propName] = new JsonArray() { linkVals![1].GetValue<int>().ToString(), linkVals[2].GetValue<int>() };
                     }
                     else
                     {
                         if (!node.ContainsKey("widgets_values"))
                             continue;
-
-                        var widgetVals = (JArray)node["widgets_values"];
+                        var widgetVals = node["widgets_values"]!.AsArray();
                         if (widgetIndex < widgetVals.Count)
                         {
-                            apiNode["inputs"][propName] = widgetVals[widgetIndex];
+                            apiNode["inputs"][propName] = widgetVals[widgetIndex].DeepClone();
                             widgetIndex++;
                         }
-
                         if (propName == "seed")
                             widgetIndex++;
                     }
                 }
             }
-
             apiNodes[nodeId] = apiNode;
         }
 
-        return new JObject() { ["prompt"] = apiNodes }.ToString();
+        return new JsonObject() { ["prompt"] = apiNodes }.ToJsonString();
     }
 
     static void AddToMapping(string classType)
@@ -195,11 +306,10 @@ public static class ComfyUiExtensions
         if (!MetadataMapping.ContainsKey(classType))
         {
             var response = BaseUrl.CombineWith($"/object_info/{classType}").GetJsonFromUrl();
-            var respObject = JObject.Parse(response);
-
-            if (respObject.TryGetValue(classType, out var value))
+            var respObject = JsonNode.Parse(response).AsObject();
+            if (respObject.TryGetPropertyValue(classType, out var value))
             {
-                MetadataMapping[classType] = (JObject)value;
+                MetadataMapping[classType] = value.AsObject();
             }
         }
     }
