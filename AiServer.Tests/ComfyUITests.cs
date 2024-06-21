@@ -27,7 +27,7 @@ public class ComfyUITests
         Assert.That(apiJson, Is.Not.Empty);
         
         // Call the ComfyUI API with the API JSON
-        var response = "http://localhost:7860/prompt".PostJsonToUrl(apiJson);
+        var response = $"{ComfyUiExtensions.BaseUrl}/prompt".PostJsonToUrl(apiJson);
         
         // Assert that the response is not null
         Assert.That(response, Is.Not.Null);
@@ -81,7 +81,7 @@ public class ComfyUITests
     [Ignore("Integration test")]
     public void Can_fetch_all_models_from_ComfyUI()
     {
-        var response = "http://localhost:7860/engines/list".GetJsonFromUrl();
+        var response = $"{ComfyUiExtensions.BaseUrl}/engines/list".GetJsonFromUrl();
         
         // Assert that the response is not null
         Assert.That(response, Is.Not.Null);
@@ -105,23 +105,38 @@ public class ComfyUITests
         Assert.That(models, Is.Not.Null);
         Assert.That(models.Count, Is.GreaterThan(0));
     }
+    
+    [Test]
+    [Ignore("Integration test")]
+    public void Can_delete_model_from_ComfyUI()
+    {
+        var modelName = "zavychromaxl_v80.safetensors"; // friendly named model
+        var deleteRes = $"{ComfyUiExtensions.BaseUrl}/agent/delete?name={modelName}".GetJsonFromUrl();
+        Assert.That(deleteRes, Is.Not.Null);
+        Assert.That(deleteRes, Is.Not.Empty);
+        
+        var response = $"{ComfyUiExtensions.BaseUrl}/engines/list".GetJsonFromUrl();
+        var models = response.FromJson<List<StableDiffusionEngine>>();
+        Assert.That(models, Is.Not.Null);
+        Assert.That(models.Any(x => x.Name.Contains(modelName)), Is.False);
+    }
 
     [Test]
     [Ignore("Integration test")]
     public void Can_get_agent_pull_to_download_model()
     {
         var modelName = "zavychromaxl"; // friendly named model
-        var response = "http://localhost:7860/engines/list".GetJsonFromUrl();
+        var response = $"{ComfyUiExtensions.BaseUrl}/engines/list".GetJsonFromUrl();
         
         var models = response.FromJson<List<StableDiffusionEngine>>();
         // Assert.That(models, Is.Not.Null);
         // Assert.That(models.Any(x => x.Name.Contains(modelName)), Is.False);
         
-        var downloadRes = $"http://localhost:7860/agent/pull?name={modelName}".GetJsonFromUrl();
+        var downloadRes = $"{ComfyUiExtensions.BaseUrl}/agent/pull?name={modelName}".GetJsonFromUrl();
         Assert.That(downloadRes, Is.Not.Null);
         Assert.That(downloadRes, Is.Not.Empty);
         
-        response = "http://localhost:7860/engines/list".GetJsonFromUrl();
+        response = $"{ComfyUiExtensions.BaseUrl}/engines/list".GetJsonFromUrl();
         models = response.FromJson<List<StableDiffusionEngine>>();
         Assert.That(models, Is.Not.Null);
         Assert.That(models.Any(x => x.Name.Contains(modelName)), Is.True);
@@ -137,7 +152,7 @@ public class ComfyUITests
         // Init test DTO
         var testDto = new StableDiffusionTextToImage
         {
-            CfgScale = 2,
+            CfgScale = 7,
             Seed = Random.Shared.NextInt64(),
             Height = 1024,
             Width = 1024,
@@ -174,7 +189,7 @@ public class ComfyUITests
         var apiJson = jsonTemplate.ConvertWorkflowToApi();
         
         // Request to ComfyUI
-        var response = "http://localhost:7860/prompt".PostJsonToUrl(apiJson);
+        var response = $"{ComfyUiExtensions.BaseUrl}/prompt".PostJsonToUrl(apiJson);
         
         // Poll for results using /history/{id}
         var historyId = JsonNode.Parse(response)["prompt_id"].ToString();
@@ -201,7 +216,7 @@ public class ComfyUITests
         // Poll for results
         while (true)
         {
-            var poll = "http://localhost:7860/history/{0}".Fmt(historyId).GetJsonFromUrl();
+            var poll = $"{ComfyUiExtensions.BaseUrl}/history/{historyId}".GetJsonFromUrl();
             var pollDict = JsonNode.Parse(poll);
             // check if pollDict is empty
             if (pollDict.AsObject().Count == 0)
@@ -221,10 +236,10 @@ public class ComfyUITests
         }
         
         // Save the result to a file
-        var bytes = "http://localhost:7860/view?filename={0}&type=temp".Fmt(resultFileName).GetBytesFromUrl();
+        var bytes = $"{ComfyUiExtensions.BaseUrl}/view?filename={resultFileName}&type=temp".GetBytesFromUrl();
         Assert.That(bytes, Is.Not.Null);
         Assert.That(bytes.Length, Is.GreaterThan(0));
-        System.IO.File.WriteAllBytes("files/{0}".Fmt(resultFileName), bytes);
+        System.IO.File.WriteAllBytes($"files/{resultFileName}", bytes);
     }
 }
 
@@ -264,7 +279,7 @@ public class StableDiffusionEngine
 
 public static class ComfyUiExtensions
 {
-    static string BaseUrl = "http://localhost:7860";
+    public static string BaseUrl = "http://localhost:7860";
     static readonly Dictionary<string, JsonObject> MetadataMapping = new();
     
     public static string ReplacePlaceholdersInJson(string jsonTemplate, Dictionary<string, string> replacements)
