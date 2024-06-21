@@ -3,6 +3,8 @@ using System.Text.Json.Nodes;
 using AiServer.ServiceModel;
 using NUnit.Framework;
 using ServiceStack;
+using ServiceStack.Text;
+using JsonObject = System.Text.Json.Nodes.JsonObject;
 
 namespace AiServer.Tests;
 
@@ -25,7 +27,7 @@ public class ComfyUITests
         Assert.That(apiJson, Is.Not.Empty);
         
         // Call the ComfyUI API with the API JSON
-        var response = "http://localhost:7861/prompt".PostJsonToUrl(apiJson);
+        var response = "http://localhost:7860/prompt".PostJsonToUrl(apiJson);
         
         // Assert that the response is not null
         Assert.That(response, Is.Not.Null);
@@ -79,7 +81,7 @@ public class ComfyUITests
     [Ignore("Integration test")]
     public void Can_fetch_all_models_from_ComfyUI()
     {
-        var response = "http://localhost:7861/engines/list".GetJsonFromUrl();
+        var response = "http://localhost:7860/engines/list".GetJsonFromUrl();
         
         // Assert that the response is not null
         Assert.That(response, Is.Not.Null);
@@ -105,6 +107,28 @@ public class ComfyUITests
     }
 
     [Test]
+    [Ignore("Integration test")]
+    public void Can_get_agent_pull_to_download_model()
+    {
+        var modelName = "zavychromaxl"; // friendly named model
+        var response = "http://localhost:7860/engines/list".GetJsonFromUrl();
+        
+        var models = response.FromJson<List<StableDiffusionEngine>>();
+        // Assert.That(models, Is.Not.Null);
+        // Assert.That(models.Any(x => x.Name.Contains(modelName)), Is.False);
+        
+        var downloadRes = $"http://localhost:7860/agent/pull?name={modelName}".GetJsonFromUrl();
+        Assert.That(downloadRes, Is.Not.Null);
+        Assert.That(downloadRes, Is.Not.Empty);
+        
+        response = "http://localhost:7860/engines/list".GetJsonFromUrl();
+        models = response.FromJson<List<StableDiffusionEngine>>();
+        Assert.That(models, Is.Not.Null);
+        Assert.That(models.Any(x => x.Name.Contains(modelName)), Is.True);
+    }
+
+    [Test]
+    [Ignore("Integration test")]
     public void Can_use_StableDiffusionTextToImage_to_template_workflow()
     {
         // Load template
@@ -113,11 +137,12 @@ public class ComfyUITests
         // Init test DTO
         var testDto = new StableDiffusionTextToImage
         {
-            CfgScale = 8,
+            CfgScale = 2,
             Seed = Random.Shared.NextInt64(),
-            Height = 512,
-            Width = 512,
-            Sampler = "K_DPM_2_ANCESTRAL",
+            Height = 1024,
+            Width = 1024,
+            Engine = "zavychromaxl_v80.safetensors",
+            Sampler = "euler_ancestral",
             Samples = 1,
             Steps = 20,
             TextPrompts = new List<TextPrompt>
@@ -126,18 +151,11 @@ public class ComfyUITests
             }
         };
         
+        var dict = testDto.ToStringDictionary();
+        dict["TextPrompts"] = testDto.TextPrompts.Select(x => x.Text).Join(",");
+        
         // Convert template to JSON
-        var jsonTemplate = ComfyUiExtensions.ReplacePlaceholdersInJson(template,new Dictionary<string, object>
-        {
-            { "CfgScale", testDto.CfgScale.ToString() },
-            { "Height", testDto.Height.ToString() },
-            { "Width", testDto.Width.ToString() },
-            { "Sampler", testDto.Sampler },
-            { "Samples", testDto.Samples.ToString() },
-            { "Steps", testDto.Steps.ToString() },
-            { "Seed", testDto.Seed},
-            { "TextPrompts", testDto.TextPrompts.Select(x => x.Text).Join(",") }
-        });
+        var jsonTemplate = ComfyUiExtensions.ReplacePlaceholdersInJson(template,dict);
         
         // Assert that the JSON template is not null
         Assert.That(jsonTemplate, Is.Not.Null);
@@ -152,6 +170,61 @@ public class ComfyUITests
         var nodes = populatedWorkflow["nodes"].AsArray();
         Assert.That(nodes, Is.Not.Null);
         Assert.That(nodes[0].GetValueKind(), Is.EqualTo(JsonValueKind.Object));
+        
+        var apiJson = jsonTemplate.ConvertWorkflowToApi();
+        
+        // Request to ComfyUI
+        var response = "http://localhost:7860/prompt".PostJsonToUrl(apiJson);
+        
+        // Poll for results using /history/{id}
+        var historyId = JsonNode.Parse(response)["prompt_id"].ToString();
+        
+        // Assert that the response is not null
+        Assert.That(response, Is.Not.Null);
+        Assert.That(historyId, Is.Not.Null);
+
+        var resultFileName = "";
+        /*
+         * "outputs": {
+             "10": {
+               "images": [
+                 {
+                   "filename": "ComfyUI_temp_iveeg_00009_.png",
+                   "subfolder": "",
+                   "type": "temp"
+                 }
+               ]
+             }
+           },
+         */
+        
+        // Poll for results
+        while (true)
+        {
+            var poll = "http://localhost:7860/history/{0}".Fmt(historyId).GetJsonFromUrl();
+            var pollDict = JsonNode.Parse(poll);
+            // check if pollDict is empty
+            if (pollDict.AsObject().Count == 0)
+            {
+                Thread.Sleep(1000);
+                continue;
+            }
+            if (pollDict[historyId]["status"]["completed"].GetValue<bool>())
+            {
+                var result = pollDict[historyId]["outputs"].AsObject().First().Value["images"].AsArray().First().AsObject()["filename"].ToString();
+                Assert.That(result, Is.Not.Null);
+                Assert.That(result, Is.Not.Empty);
+                resultFileName = result;
+                break;
+            }
+            Thread.Sleep(1000);
+        }
+        
+        // Save the result to a file
+        var bytes = "http://localhost:7860/view?filename={0}&type=temp".Fmt(resultFileName).GetBytesFromUrl();
+        Assert.That(bytes, Is.Not.Null);
+        Assert.That(bytes.Length, Is.GreaterThan(0));
+        System.IO.File.WriteAllBytes("files/{0}".Fmt(resultFileName), bytes);
     }
 }
 
@@ -168,6 +241,7 @@ public class StableDiffusionTextToImage
     public string Sampler { get; set; }
     public int Samples { get; set; }
     public int Steps { get; set; }
+    public string Engine { get; set; }
     public List<TextPrompt> TextPrompts { get; set; }
 }
 
@@ -190,14 +264,14 @@ public class StableDiffusionEngine
 
 public static class ComfyUiExtensions
 {
-    const string BaseUrl = "http://localhost:7861";
+    static string BaseUrl = "http://localhost:7860";
     static readonly Dictionary<string, JsonObject> MetadataMapping = new();
     
-    public static string ReplacePlaceholdersInJson(string jsonTemplate, Dictionary<string, object> replacements)
+    public static string ReplacePlaceholdersInJson(string jsonTemplate, Dictionary<string, string> replacements)
     {
         foreach (var replacement in replacements)
         {
-            jsonTemplate = jsonTemplate.Replace($"{{{replacement.Key}}}", replacement.Value.ToJson());
+            jsonTemplate = jsonTemplate.Replace($"{{{replacement.Key}}}", replacement.Value);
         }
 
         return jsonTemplate;

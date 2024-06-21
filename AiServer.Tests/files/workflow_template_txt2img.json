@@ -75,7 +75,7 @@
         "Node name for S&R": "CLIPTextEncode"
       },
       "widgets_values": [
-        {TextPrompts}
+        "{TextPrompts}"
       ]
     },
     {
@@ -165,7 +165,7 @@
         "randomize",
         {Steps},
         {CfgScale},
-        {Sampler},
+        "{Sampler}",
         "normal",
         1
       ]
