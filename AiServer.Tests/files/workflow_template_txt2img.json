@@ -37,7 +37,7 @@
         "Node name for S&R": "CLIPTextEncode"
       },
       "widgets_values": [
-        "text, watermark"
+        "{NegativePrompt}"
       ]
     },
     {
@@ -75,7 +75,7 @@
         "Node name for S&R": "CLIPTextEncode"
       },
       "widgets_values": [
-        "{TextPrompts}"
+        "{PositivePrompt}"
       ]
     },
     {
@@ -108,7 +108,7 @@
       "widgets_values": [
         {Width},
         {Height},
-        {Samples}
+        {BatchSize}
       ]
     },
     {
@@ -215,7 +215,7 @@
         "Node name for S&R": "CheckpointLoaderSimple"
       },
       "widgets_values": [
-        "{Engine}"
+        "{Model}"
       ]
     },
     {

@@ -147,31 +147,28 @@ public class ComfyUITests
     }
 
     [Test]
-    [Ignore("Integration test")]
+    //[Ignore("Integration test")]
     public async Task Can_use_StableDiffusionTextToImage_to_template_workflow()
     {
         // Load template
-        var template = System.IO.File.ReadAllText("files/workflow_template_txt2img.json");
+        var template = File.ReadAllText("files/workflow_template_txt2img.json");
         
         // Init test DTO
-        var testDto = new StableDiffusionTextToImage
+        var testDto = new ComfyTextToImage()
         {
             CfgScale = 7,
             Seed = Random.Shared.NextInt64(),
             Height = 1024,
             Width = 1024,
-            Engine = "zavychromaxl_v80.safetensors",
-            Sampler = "euler_ancestral",
-            Samples = 1,
+            Model = "zavychromaxl_v80.safetensors",
+            Sampler = ComfySampler.euler_ancestral,
+            BatchSize = 1,
             Steps = 20,
-            TextPrompts = new List<TextPrompt>
-            {
-                new() { Text = "A beautiful sunset over the ocean", Weight = 1 }
-            }
+            PositivePrompt = "A beautiful sunset over the ocean",
+            NegativePrompt = "low quality, blurry, noisy image",
         };
         
         var dict = testDto.ToStringDictionary();
-        dict["TextPrompts"] = testDto.TextPrompts.Select(x => x.Text).Join(",");
         
         // Convert template to JSON
         var jsonTemplate = client.ReplacePlaceholdersInJson(template, dict);
@@ -210,6 +207,85 @@ public class ComfyUITests
     }
 }
 
+public class ComfyTextToImage
+{
+    public long Seed { get; set; }
+    public int CfgScale { get; set; }
+    public int Height { get; set; }
+    public int Width { get; set; }
+    public ComfySampler Sampler { get; set; }
+    public int BatchSize { get; set; }
+    public int Steps { get; set; }
+    public string Model { get; set; }
+    public string PositivePrompt { get; set; }
+    public string NegativePrompt { get; set; }
+}
+
+public enum ComfySampler
+{
+    euler,
+    euler_ancestral,
+    huen,
+    huenpp2,
+    dpm_2,
+    dpm_2_ancestral,
+    lms,
+    dpm_fast,
+    dpm_adaptive,
+    dpmpp_2s_ancestral,
+    dpmpp_sde,
+    dpmpp_sde_gpu,
+    dpmpp_2m,
+    dpmpp_2m_sde,
+    dpmpp_2m_sde_gpu,
+    dpmpp_3m_sde,
+    dpmpp_3m_sde_gpu,
+    ddpm,
+    lcm,
+    ddim,
+    uni_pc,
+    uni_pc_bh2
+}
+
+public static class ComfyUiExtensions
+{
+    public static ComfyTextToImage ToComfyTextToImage(this StableDiffusionTextToImage textToImage)
+    {
+        return new ComfyTextToImage
+        {
+            Seed = textToImage.Seed,
+            CfgScale = textToImage.CfgScale,
+            Height = textToImage.Height,
+            Width = textToImage.Width,
+            Sampler = textToImage.Sampler.ToComfySampler(),
+            BatchSize = textToImage.Samples,
+            Steps = textToImage.Steps,
+            Model = textToImage.Engine,
+            // Check length of TextPrompts, if more than 1, use weight as guide where > 0 is positive, < 0 is negative
+            PositivePrompt = textToImage.TextPrompts.Count == 1 ? textToImage.TextPrompts[0].Text : 
+                textToImage.TextPrompts.Any(x => x.Weight > 0) ? textToImage.TextPrompts.FirstOrDefault(x => x.Weight > 0)?.Text : "",
+            NegativePrompt = textToImage.TextPrompts.Count < 1 ? "" : textToImage.TextPrompts.FirstOrDefault(x => x.Weight < 0)?.Text
+        };
+    }
+    public static ComfySampler ToComfySampler(this StableDiffusionSampler sampler)
+    {
+        return sampler switch
+        {
+            StableDiffusionSampler.K_EULER => ComfySampler.euler,
+            StableDiffusionSampler.K_EULER_ANCESTRAL => ComfySampler.euler_ancestral,
+            StableDiffusionSampler.DDIM => ComfySampler.ddim,
+            StableDiffusionSampler.DDPM => ComfySampler.ddpm,
+            StableDiffusionSampler.K_DPM_2 => ComfySampler.dpm_2,
+            StableDiffusionSampler.K_DPM_2_ANCESTRAL => ComfySampler.dpm_2_ancestral,
+            StableDiffusionSampler.K_HEUN => ComfySampler.huen,
+            StableDiffusionSampler.K_LMS => ComfySampler.lms,
+            _ => ComfySampler.euler_ancestral
+        };
+    }
+
+}
+
+
 
 /// <summary>
 /// Text To Image Request to Match Stability AI API
@@ -220,11 +296,25 @@ public class StableDiffusionTextToImage
     public int CfgScale { get; set; }
     public int Height { get; set; }
     public int Width { get; set; }
-    public string Sampler { get; set; }
+    public StableDiffusionSampler Sampler { get; set; }
     public int Samples { get; set; }
     public int Steps { get; set; }
     public string Engine { get; set; }
     public List<TextPrompt> TextPrompts { get; set; }
+}
+
+public enum StableDiffusionSampler
+{
+    DDIM,
+    DDPM,
+    K_DPMPP_2M,
+    K_DPMPP_2S_ANCESTRAL,
+    K_DPM_2,
+    K_DPM_2_ANCESTRAL,
+    K_EULER,
+    K_EULER_ANCESTRAL,
+    K_HEUN,
+    K_LMS
 }
 
 public class TextPrompt
