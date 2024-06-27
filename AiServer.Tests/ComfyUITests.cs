@@ -11,7 +11,7 @@ namespace AiServer.Tests;
 
 public class ComfyUITests
 {
-    const string BaseUrl = "https://comfy-dell.pvq.app";
+    const string BaseUrl = "https://localhost:7860";
     readonly ComfyClient client = new (BaseUrl);
     
     [Test]
