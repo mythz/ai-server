@@ -1,77 +1,137 @@
 using System.Net.Http.Json;
 using System.Text;
 using ServiceStack;
+using ServiceStack.Script;
+using ServiceStack.Text;
 
 namespace AiServer.ServiceInterface;
 
 using System.Net.Http;
 using System.Text.Json.Nodes;
 
-public class ComfyClient
+public class ComfyClient(HttpClient httpClient)
 {
-    private readonly HttpClient _httpClient;
-    private readonly string _baseUrl;
-    private readonly Dictionary<string, JsonObject> _metadataMapping = new();
+    private readonly Dictionary<string, JsonObject> metadataMapping = new();
+    private static ScriptContext context = new ScriptContext().Init();
 
-    public ComfyClient(string baseUrl = "http://localhost:7860", string apiKey = null)
-    {
-        _baseUrl = baseUrl;
-        _httpClient = new HttpClient
-        {
-            BaseAddress = new Uri(_baseUrl),
-            DefaultRequestHeaders = { { "ContentType", "application/json" }, { "Accepts", "application/json" } }
-        };
-        if (!string.IsNullOrEmpty(apiKey))
-            _httpClient.DefaultRequestHeaders.Add("Authorization", $"Bearer {apiKey}");
-    }
+    public string WorkflowTemplatePath { get; set; } = "workflows";
+    public string TextToImageTemplate { get; set; } = "text_to_image.json";
+    public string ImageToTextTemplate { get; set; } = "image_to_text.json";
+    public string ImageToImageTemplate { get; set; } = "image_to_image.json";
+    public string TextToAudioTemplate { get; set; } = "text_to_audio.json";
+    public string AudioToTextTemplate { get; set; } = "audio_to_text.json";
     
-    public async Task<string> PromptGenerationAsync(string apiJson)
+    public int PollIntervalMs { get; set; } = 1000;
+    public int TimeoutMs { get; set; } = 60000;
+
+    public ComfyClient(string baseUrl,string apiKey = null)
+        : this(string.IsNullOrEmpty(apiKey) ? new HttpClient
+        {
+            BaseAddress = new Uri(baseUrl),
+            DefaultRequestHeaders = { { "ContentType", "application/json" }, { "Accepts", "application/json" } }
+        } : new HttpClient
+        {
+            BaseAddress = new Uri(baseUrl),
+            DefaultRequestHeaders = { { "ContentType", "application/json" }, { "Accepts", "application/json" }, {
+                "Authorization", $"Bearer {apiKey}"}}})
     {
-        var response = await _httpClient.PostAsync("/prompt", new StringContent(apiJson, Encoding.UTF8, "application/json"));
+    }
+
+    public async Task<string> QueueWorkflowAsync(string apiJson)
+    {
+        var response = await httpClient.PostAsync("/prompt", new StringContent(apiJson, Encoding.UTF8, "application/json"));
         response.EnsureSuccessStatusCode();
         return await response.Content.ReadAsStringAsync();
     }
     
-    public string ReplacePlaceholdersInJson(string jsonTemplate, Dictionary<string, string> replacements)
+    public async Task<string> PopulateTextToImageWorkflowAsync(ComfyTextToImage request)
     {
-        foreach (var replacement in replacements)
+        // Read template from file for Text to Image
+        var template = await File.ReadAllTextAsync(Path.Combine(WorkflowTemplatePath, TextToImageTemplate));
+        // Populate template with request
+        var workflowPageResult = new PageResult(context.OneTimePage(template))
         {
-            jsonTemplate = jsonTemplate.Replace($"{{{replacement.Key}}}", replacement.Value);
-        }
+            Args = request.ToObjectDictionary(),
+        };
 
-        return jsonTemplate;
+        // Render template to JSON
+        return await workflowPageResult.RenderToStringAsync();
+    }
+
+    public async Task<ComfyWorkflowResponse> GenerateTextToImageAsync(StableDiffusionTextToImage request)
+    {
+        // Convert to Internal DTO
+        var comfyRequest = request.ToComfyTextToImage();
+        // Read template from file for Text to Image
+        var workflowJson = await PopulateTextToImageWorkflowAsync(comfyRequest);
+        // Convert to ComfyUI API JSON format
+        var apiJson = await ConvertWorkflowToApiAsync(workflowJson);
+        // Call ComfyUI API
+        var response = await QueueWorkflowAsync(apiJson);
+        // Returns with job ID
+        using var jsConfig = JsConfig.With(new Config { TextCase = TextCase.SnakeCase });
+        return response.FromJson<ComfyWorkflowResponse>();
     }
     
-    public async Task<string> GetModelsListAsync()
+    public async Task<List<ComfyModel>> GetModelsListAsync()
     {
-        var response = await _httpClient.GetStringAsync("/engines/list");
-        return response;
+        var response = await httpClient.GetAsync("/engines/list");
+        response.EnsureSuccessStatusCode();
+        var result = await response.Content.ReadAsStringAsync();
+        using var jsConfig = JsConfig.With(new Config { TextCase = TextCase.SnakeCase });
+        return result.FromJson<List<ComfyModel>>();
     }
     
-    public async Task<string> DownloadModelAsync(string name)
+    /// <summary>
+    /// Get agent to remotely download a model
+    /// </summary>
+    /// <param name="url">URL location to download the model from</param>
+    /// <param name="filename">Unique name for the model to be saved and used as</param>
+    /// <param name="apiKey">Optional API Key if the download URL requires API key authentication</param>
+    /// <param name="apiKeyLocation">Optional API Key Location config which can be used to populate the API Key in a specific way.
+    /// For example, `query:token` will use `token` query string when calling the download URL.
+    /// `header:x-api-key` will populate the `x-api-key` request header with the API Key value.
+    /// `bearer` will populate the Authorization header and use the API Key as a Bearer token.</param>
+    /// <returns></returns>
+    public async Task<string> DownloadModelAsync(string url, string filename, string apiKey = null, string apiKeyLocation = "")
     {
-        var response = await _httpClient.GetStringAsync($"/agent/pull?name={name}");
-        return response;
+        var path = $"/agent/pull?url={url}&name={filename}";
+        if (!string.IsNullOrEmpty(apiKey))
+            path += $"&api_key={apiKey}";
+        if (!string.IsNullOrEmpty(apiKeyLocation))
+            path += $"&api_key_location={apiKeyLocation}";
+        var response = await httpClient.PostAsync(path,null);
+        response.EnsureSuccessStatusCode();
+        return await response.Content.ReadAsStringAsync();
     }
 
     public async Task<string> GetPromptHistory(string id)
     {
-        var response = await _httpClient.GetStringAsync($"/history/{id}");
-        return response;
+        var response = await httpClient.GetAsync($"/history/{id}");
+        response.EnsureSuccessStatusCode();
+        return await response.Content.ReadAsStringAsync();
     }
     
     public async Task<Tuple<string,byte[]>> GetPromptResultFile(string id)
     {
         string resultFileName;
+        var now = DateTime.UtcNow;
+        string lastPollResults = "";
         // Poll for results
         while (true)
         {
+            if ((DateTime.UtcNow - now).TotalMilliseconds > TimeoutMs)
+            {
+                Console.WriteLine($"Timeout waiting for result: {id}\nLast status: {lastPollResults}");
+                throw new TimeoutException("Timeout waiting for result");
+            }
             var poll = await GetPromptHistory(id);
+            lastPollResults = poll;
             var pollDict = JsonNode.Parse(poll);
             // check if pollDict is empty
             if (pollDict.AsObject().Count == 0)
             {
-                Thread.Sleep(1000);
+                Thread.Sleep(PollIntervalMs);
                 continue;
             }
             if (pollDict[id]["status"]["completed"].GetValue<bool>())
@@ -80,17 +140,18 @@ public class ComfyClient
                 resultFileName = result;
                 break;
             }
-            Thread.Sleep(1000);
+            
+            Thread.Sleep(PollIntervalMs);
         }
         
         // Save the result to a file
-        var data = await _httpClient.GetByteArrayAsync($"/view?filename={resultFileName}&type=temp");
+        var data = await httpClient.GetByteArrayAsync($"/view?filename={resultFileName}&type=temp");
         return Tuple.Create(resultFileName, data);
     }
 
     public async Task<string> DeleteModelAsync(string name)
     {
-        var response = await _httpClient.DeleteAsync($"/agent/delete?name={name}");
+        var response = await httpClient.PostAsync($"/agent/delete?name={name}", null);
         response.EnsureSuccessStatusCode();
         return await response.Content.ReadAsStringAsync();
     }
@@ -157,7 +218,7 @@ public class ComfyClient
             var apiNode = new JsonObject();
             apiNode["class_type"] = classType;
             apiNode["inputs"] = new JsonObject();
-            if (_metadataMapping.TryGetValue(classType, out var currentClass))
+            if (metadataMapping.TryGetValue(classType, out var currentClass))
             {
                 var requiredMetadata = currentClass["input"]!["required"]!.AsObject();
                 var widgetIndex = 0;
@@ -194,14 +255,256 @@ public class ComfyClient
     }
     private async Task AddToMappingAsync(string classType)
     {
-        if (!_metadataMapping.ContainsKey(classType))
+        if (!metadataMapping.ContainsKey(classType))
         {
-            var response = await _httpClient.GetStringAsync($"/object_info/{classType}");
+            var response = await httpClient.GetStringAsync($"/object_info/{classType}");
             var respObject = JsonNode.Parse(response).AsObject();
             if (respObject.TryGetPropertyValue(classType, out var value))
             {
-                _metadataMapping[classType] = value.AsObject();
+                metadataMapping[classType] = value.AsObject();
             }
         }
     }
+    
+    /// <summary>
+    /// Parse the status JSON response from ComfyUI API
+    /// This comes from the /history/{id} endpoint
+    /// And has somewhat of a strange format
+    /// The root object key is the job ID, and it has 3 properties:
+    /// - prompt
+    /// - outputs
+    /// - status
+    ///
+    /// `prompt` is an array of 5 elements that seem to be in the order of:
+    /// 0. The number of nodes in the workflow (int)
+    /// 1. The Job ID (string)
+    /// 2. The full API request object that created the job (object)
+    /// 3. Not sure, empty object?
+    /// 4. An array of strings that represent nodes with outputs. Eg, ["10"]
+    ///
+    /// `outputs` is an object with keys that match the node IDs that have outputs.
+    /// Each of these is an object which contains the output data for that node.
+    /// The structure of that output also seems to be node specific.
+    ///
+    /// `status` is an object with the following properties:
+    /// - status_str: A string that represents the status of the job
+    /// - completed: A boolean that represents if the job is completed
+    /// - messages: An array of messages events that have occurred during the job
+    /// Each message is an array with two elements, a name string and an object with the message data,
+    /// the structure of which is dependent on the message type.
+    /// </summary>
+    /// <param name="statusJson"></param>
+    /// <returns></returns>
+    private ComfyWorkflowStatus ParseWorkflowStatus(JsonObject statusJson, string jobId)
+    {
+        var hasJob = statusJson.ContainsKey(jobId);
+        if (!hasJob)
+            throw new Exception("Job ID not found in status JSON");
+        
+        var job = statusJson[jobId].AsObject();
+        var prompt = job["prompt"].AsArray();
+        var outputs = job["outputs"].AsObject();
+        var status = job["status"].AsObject();
+
+        var outputNodeIds = prompt[4].AsArray().GetValues<string>();
+        var result = new ComfyWorkflowStatus
+        {
+            StatusMessage = status["status_str"].ToString(),
+            Completed = status["completed"].GetValue<bool>(),
+            Outputs = outputNodeIds.Select(x =>
+            {
+                var output = outputs[x].AsObject();
+                return new ComfyOutput
+                {
+                    Filename = output["images"].AsArray().First().AsObject()["filename"].ToString(),
+                    Type = output["images"].AsArray().First().AsObject()["type"].ToString(),
+                    // This is usually an empty string, but it will depend on the workflow
+                    Subfolder = output["images"].AsArray().First().AsObject()["subfolder"].ToString()
+                };
+            }).ToList()
+        };
+        
+        return result;
+    }
+
+    public async Task<ComfyWorkflowStatus> GetWorkflowStatusAsync(string jobId)
+    {
+        var statusJson = await GetPromptHistory(jobId);
+        var parsedStatus = JsonNode.Parse(statusJson);
+        if (parsedStatus == null)
+            throw new Exception("Invalid status JSON response");
+        
+        // Handle the case where the status is an empty object
+        if (parsedStatus.AsObject().Count == 0)
+            return new ComfyWorkflowStatus();
+        
+        var status = ParseWorkflowStatus(parsedStatus.AsObject(), jobId);
+        // Convert to ComfyWorkflowStatus
+        return status;
+    }
+}
+
+public class ComfyWorkflowStatus
+{
+    public string StatusMessage { get; set; }
+    public bool Completed { get; set; }
+    public List<ComfyOutput> Outputs { get; set; } = new();
+}
+
+public class ComfyOutput
+{
+    public string Filename { get; set; }
+    public string Type { get; set; }
+    public string Subfolder { get; set; }
+}
+
+public class ComfyTextToImage
+{
+    public long Seed { get; set; }
+    public int CfgScale { get; set; }
+    public int Height { get; set; }
+    public int Width { get; set; }
+    public ComfySampler Sampler { get; set; }
+    public int BatchSize { get; set; }
+    public int Steps { get; set; }
+    public string Model { get; set; }
+    public string PositivePrompt { get; set; }
+    public string NegativePrompt { get; set; }
+}
+
+public enum ComfySampler
+{
+    euler,
+    euler_ancestral,
+    huen,
+    huenpp2,
+    dpm_2,
+    dpm_2_ancestral,
+    lms,
+    dpm_fast,
+    dpm_adaptive,
+    dpmpp_2s_ancestral,
+    dpmpp_sde,
+    dpmpp_sde_gpu,
+    dpmpp_2m,
+    dpmpp_2m_sde,
+    dpmpp_2m_sde_gpu,
+    dpmpp_3m_sde,
+    dpmpp_3m_sde_gpu,
+    ddpm,
+    lcm,
+    ddim,
+    uni_pc,
+    uni_pc_bh2
+}
+
+public static class ComfyUiExtensions
+{
+    public static ComfyTextToImage ToComfyTextToImage(this StableDiffusionTextToImage textToImage)
+    {
+        return new ComfyTextToImage
+        {
+            Seed = textToImage.Seed,
+            CfgScale = textToImage.CfgScale,
+            Height = textToImage.Height,
+            Width = textToImage.Width,
+            Sampler = textToImage.Sampler.ToComfySampler(),
+            BatchSize = textToImage.Samples,
+            Steps = textToImage.Steps,
+            Model = textToImage.Engine,
+            // Check length of TextPrompts, if more than 1, use weight as guide where > 0 is positive, < 0 is negative
+            PositivePrompt = textToImage.TextPrompts.Count == 1 ? textToImage.TextPrompts[0].Text : 
+                textToImage.TextPrompts.Any(x => x.Weight > 0) ? textToImage.TextPrompts.FirstOrDefault(x => x.Weight > 0)?.Text : "",
+            NegativePrompt = textToImage.TextPrompts.Count < 1 ? "" : textToImage.TextPrompts.FirstOrDefault(x => x.Weight < 0)?.Text
+        };
+    }
+    public static ComfySampler ToComfySampler(this StableDiffusionSampler sampler)
+    {
+        return sampler switch
+        {
+            StableDiffusionSampler.K_EULER => ComfySampler.euler,
+            StableDiffusionSampler.K_EULER_ANCESTRAL => ComfySampler.euler_ancestral,
+            StableDiffusionSampler.DDIM => ComfySampler.ddim,
+            StableDiffusionSampler.DDPM => ComfySampler.ddpm,
+            StableDiffusionSampler.K_DPM_2 => ComfySampler.dpm_2,
+            StableDiffusionSampler.K_DPM_2_ANCESTRAL => ComfySampler.dpm_2_ancestral,
+            StableDiffusionSampler.K_HEUN => ComfySampler.huen,
+            StableDiffusionSampler.K_LMS => ComfySampler.lms,
+            _ => ComfySampler.euler_ancestral
+        };
+    }
+
+}
+
+
+
+/// <summary>
+/// Text To Image Request to Match Stability AI API
+/// </summary>
+public class StableDiffusionTextToImage
+{
+    public long Seed { get; set; }
+    public int CfgScale { get; set; }
+    public int Height { get; set; }
+    public int Width { get; set; }
+    public StableDiffusionSampler Sampler { get; set; }
+    public int Samples { get; set; }
+    public int Steps { get; set; }
+    public string Engine { get; set; }
+    public List<TextPrompt> TextPrompts { get; set; }
+}
+
+/*
+{
+"prompt_id": "f33f3b7a-a72a-4e06-8184-823a6fe5071f",
+"number": 2,
+"node_errors": {}
+}
+*/
+public class ComfyWorkflowResponse
+{
+    public string PromptId { get; set; }
+    public int Number { get; set; }
+    public List<NodeError> NodeErrors { get; set; }
+}
+
+public class NodeError
+{
+    
+}
+
+public enum StableDiffusionSampler
+{
+    DDIM,
+    DDPM,
+    K_DPMPP_2M,
+    K_DPMPP_2S_ANCESTRAL,
+    K_DPM_2,
+    K_DPM_2_ANCESTRAL,
+    K_EULER,
+    K_EULER_ANCESTRAL,
+    K_HEUN,
+    K_LMS
+}
+
+public class TextPrompt
+{
+    public string Text { get; set; }
+    public double Weight { get; set; }
+}
+
+
+public class ComfyModel
+{
+    public string Description { get; set; }
+    public string Id { get; set; }
+    public string Name { get; set; }
+    public string Type { get; set; }
+}
+/// <summary>
+/// Engine DTO
+/// </summary>
+public class StableDiffusionEngine : ComfyModel
+{
+
 }

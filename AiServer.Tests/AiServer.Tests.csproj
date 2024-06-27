@@ -29,14 +29,12 @@
   </ItemGroup>
 
   <ItemGroup>
-    <None Remove="files\workflow_simple_generation.json" />
-    <Content Include="files\workflow_simple_generation.json">
+    <None Update="workflows\workflow_simple_generation.json">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <None Remove="files\workflow_template_txt2img.json" />
-    <Content Include="files\workflow_template_txt2img.json">
+    </None>
+    <None Update="workflows\text_to_image.json">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
+    </None>
   </ItemGroup>
 
 </Project>
