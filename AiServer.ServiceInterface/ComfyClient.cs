@@ -116,6 +116,14 @@ public class ComfyClient(HttpClient httpClient)
         return response.FromJson<ComfyWorkflowResponse>();
     }
     
+    public async Task<ComfyAgentDownloadStatus> GetDownloadStatusAsync(string name)
+    {
+        var response = await httpClient.GetAsync($"/agent/pull?name={name}");
+        response.EnsureSuccessStatusCode();
+        var result = await response.Content.ReadAsStringAsync();
+        return result.FromJson<ComfyAgentDownloadStatus>();
+    }
+    
     public async Task<List<ComfyModel>> GetModelsListAsync()
     {
         var response = await httpClient.GetAsync("/engines/list");
@@ -395,6 +403,12 @@ public class ComfyWorkflowStatus
     public string StatusMessage { get; set; }
     public bool Completed { get; set; }
     public List<ComfyOutput> Outputs { get; set; } = new();
+}
+
+public class ComfyAgentDownloadStatus
+{
+    public string? Name { get; set; }
+    public int? Progress { get; set; }
 }
 
 public class ComfyOutput

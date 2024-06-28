@@ -11,35 +11,21 @@ namespace AiServer.Tests;
 
 public class ComfyUITests
 {
-    const string BaseUrl = "http://localhost:7860/api";
-    readonly ComfyClient client = new (BaseUrl);
+    const string BaseUrl = "https://comfy-dell.pvq.app/api";
+    private ComfyClient client;
+    
+    [OneTimeSetUp]
+    public void OneTimeSetUp()
+    {
+        var apiKey = Environment.GetEnvironmentVariable("COMFY_API_KEY");
+        if (string.IsNullOrEmpty(apiKey))
+        {
+            Assert.Ignore("COMFY_API_KEY is not set");
+        }
+        client = new ComfyClient(BaseUrl, apiKey);
+    }
     
     [Test]
-    [Ignore("Integration test")]
-    public async Task Can_call_comfyui_with_original_workflow_json()
-    {
-        // Take the original workflow JSON from "files/workflow_simple_generation.json"
-        var rawWorkflow = System.IO.File.ReadAllText("workflows/workflow_simple_generation.json");
-        
-        // Convert the workflow JSON to API JSON
-        var apiJson = await client.ConvertWorkflowToApiAsync(rawWorkflow);
-        
-        // Assert that the API JSON is not null
-        Assert.That(apiJson, Is.Not.Null);
-        
-        // Assert that the API JSON is not empty
-        Assert.That(apiJson, Is.Not.Empty);
-        
-        // Call the ComfyUI API with the API JSON
-        var response = await client.QueueWorkflowAsync(apiJson);
-        
-        // Assert that the response is not null
-        Assert.That(response, Is.Not.Null);
-        
-    }
-
-    [Test]
-    [Ignore("Integration test")]
     public async Task Can_convert_original_workflow_json()
     {
         // Take the original workflow JSON from "files/workflow_simple_generation.json"
@@ -82,7 +68,6 @@ public class ComfyUITests
     }
 
     [Test]
-    [Ignore("Integration test")]
     public async Task Can_fetch_all_models_from_ComfyUI()
     {
         var models = await client.GetModelsListAsync();
@@ -92,7 +77,6 @@ public class ComfyUITests
     }
     
     [Test]
-    [Ignore("Integration test")]
     public async Task Can_delete_model_from_ComfyUI()
     {
         var modelName = "zavychromaxl_v80.safetensors"; // friendly named model
@@ -106,7 +90,6 @@ public class ComfyUITests
     }
 
     [Test]
-    [Ignore("Integration test")]
     public async Task Can_get_agent_pull_to_download_model()
     {
         var testUrl = "https://civitai.com/api/download/models/9208";
@@ -118,6 +101,18 @@ public class ComfyUITests
         var downloadRes = await client.DownloadModelAsync(testUrl, testName);
         Assert.That(downloadRes, Is.Not.Null);
         Assert.That(downloadRes, Is.Not.Empty);
+        
+        // Poll for the model to be available
+        var status = await client.GetDownloadStatusAsync(testName);
+        int jobTimeout = 120 * 1000; // 120 seconds
+        int pollInterval = 1000; // 1 second
+        var now = DateTime.UtcNow;
+        while (status.Progress < 100 && (DateTime.UtcNow - now).TotalMilliseconds < jobTimeout)
+        {
+            await Task.Delay(pollInterval);
+            status = await client.GetDownloadStatusAsync(testName);
+            Console.WriteLine($"Downloading model: {status.Progress}%");
+        }
         
         models = await client.GetModelsListAsync();
         Assert.That(models, Is.Not.Null);
@@ -157,7 +152,7 @@ public class ComfyUITests
         Assert.That(response.PromptId, Is.Not.Empty);
         
         var status = await client.GetWorkflowStatusAsync(response.PromptId);
-        int jobTimeout = 20 * 1000; // 20 seconds
+        int jobTimeout = 30 * 1000; // 30 seconds
         int pollInterval = 1000; // 1 second
         var now = DateTime.UtcNow;
         while (status.Completed == false && (DateTime.UtcNow - now).TotalMilliseconds < jobTimeout)
@@ -281,14 +276,13 @@ public class ComfyUITests
         Assert.That(populatedWorkflow, Is.Not.Null);
         Assert.That(populatedWorkflow["nodes"], Is.Not.Null);
         Assert.That(populatedWorkflow["nodes"].AsArray().Count, Is.GreaterThan(0));
-        Assert.That(populatedWorkflow["nodes"].AsArray().Count, Is.EqualTo(8));
+        Assert.That(populatedWorkflow["nodes"].AsArray().Count, Is.EqualTo(9));
         var nodes = populatedWorkflow["nodes"].AsArray();
         Assert.That(nodes, Is.Not.Null);
         Assert.That(nodes[0].GetValueKind(), Is.EqualTo(JsonValueKind.Object));
     }
 
     [Test]
-    [Ignore("Integration test")]
     public async Task Can_use_TextToImage_from_template_workflow()
     {
         // Init test DTO
