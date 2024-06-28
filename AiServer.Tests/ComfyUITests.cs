@@ -79,7 +79,7 @@ public class ComfyUITests
     [Test]
     public async Task Can_delete_model_from_ComfyUI()
     {
-        var modelName = "zavychromaxl_v80.safetensors"; // friendly named model
+        var modelName = "easynegative.safetensors"; // friendly named model
         var deleteRes = await client.DeleteModelAsync(modelName);
         Assert.That(deleteRes, Is.Not.Null);
         Assert.That(deleteRes, Is.Not.Empty);
