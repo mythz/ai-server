@@ -23,6 +23,8 @@ jobs:
           SS_LICENSE=`echo '${{ secrets.APPSETTINGS_PATCH }}' | jq -r .[0].value.license`
           echo "::add-mask::$SS_LICENSE"
           echo "SERVICESTACK_LICENSE=${SS_LICENSE}" >> $GITHUB_ENV
+          # Add Comfy Agent API key
+          echo "COMFY_API_KEY=${{ secrets.COMFY_API_KEY }}" >> $GITHUB_ENV
 
       - name: build
         run: dotnet build
@@ -30,7 +32,6 @@ jobs:
 
       - name: test
         run: |
-          echo "COMFY_API_KEY=${{ secrets.COMFY_API_KEY }}" >> $GITHUB_ENV
           dotnet test
           if [ $? -eq 0 ]; then
             echo TESTS PASSED
