@@ -658,10 +658,3 @@ public class ComfyModel
     public string Name { get; set; }
     public string Type { get; set; }
 }
-/// <summary>
-/// Engine DTO
-/// </summary>
-public class StableDiffusionEngine : ComfyModel
-{
-
-}
