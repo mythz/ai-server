@@ -9,6 +9,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="SixLabors.ImageSharp" Version="3.1.4" />
     <ProjectReference Include="..\AiServer.ServiceInterface\AiServer.ServiceInterface.csproj" />
     <ProjectReference Include="..\AiServer.ServiceModel\AiServer.ServiceModel.csproj" />
 
@@ -44,6 +45,10 @@
     </Content>
     <None Remove="workflows\image_to_image.json" />
     <Content Include="workflows\image_to_image.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <None Remove="workflows\image_to_image_upscale.json" />
+    <Content Include="workflows\image_to_image_upscale.json">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
   </ItemGroup>

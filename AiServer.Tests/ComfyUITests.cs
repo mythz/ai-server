@@ -6,6 +6,8 @@ using NUnit.Framework;
 using ServiceStack;
 using ServiceStack.Text;
 using JsonObject = System.Text.Json.Nodes.JsonObject;
+using System.Drawing;
+using SixLabors.ImageSharp;
 
 namespace AiServer.Tests;
 
@@ -17,7 +19,7 @@ public class ComfyUITests
     [OneTimeSetUp]
     public void OneTimeSetUp()
     {
-        var apiKey = Environment.GetEnvironmentVariable("COMFY_API_KEY");
+        var apiKey = Environment.GetEnvironmentVariable("COMFY_API_KEY") ?? "testtest1234";
         if (string.IsNullOrEmpty(apiKey))
         {
             Assert.Ignore("COMFY_API_KEY is not set");
@@ -117,6 +119,59 @@ public class ComfyUITests
         models = await client.GetModelsListAsync();
         Assert.That(models, Is.Not.Null);
         Assert.That(models.Any(x => x.Name.Contains(testName)), Is.True);
+    }
+
+    [Test]
+    public async Task Can_use_ComfyClient_ImageToImageUpscale()
+    {
+        var testDto = new StableDiffusionImageToImageUpscale()
+        {
+            Image = File.OpenRead("files/comfyui_upload_test.png"),
+        };
+        
+        var response = await client.GenerateImageToImageUpscaleAsync(testDto);
+        
+        Assert.That(response, Is.Not.Null);
+        Assert.That(response.PromptId, Is.Not.Empty);
+        
+        var status = await client.GetWorkflowStatusAsync(response.PromptId);
+        int jobTimeout = 30 * 1000; // 30 seconds
+        int pollInterval = 1000; // 1 second
+        var now = DateTime.UtcNow;
+        while (status.Completed == false && (DateTime.UtcNow - now).TotalMilliseconds < jobTimeout)
+        {
+            await Task.Delay(pollInterval);
+            status = await client.GetWorkflowStatusAsync(response.PromptId);
+        }
+        Assert.That(status, Is.Not.Null);
+        Assert.That(status.StatusMessage, Is.EqualTo("success"));
+        Assert.That(status.Completed, Is.EqualTo(true));
+        Assert.That(status.Outputs, Is.Not.Empty);
+        Assert.That(status.Outputs.Count, Is.EqualTo(1));
+        
+        Assert.That(status.Outputs[0].Files.Count, Is.EqualTo(1));
+        Assert.That(status.Outputs[0].Files[0].Type, Is.EqualTo("temp"));
+        Assert.That(status.Outputs[0].Files[0].Filename, Is.Not.Null);
+        Assert.That(status.Outputs[0].Files[0].Filename.Contains("ComfyUI_temp"), Is.True);
+        
+        // Check that the output image is scaled up
+        var outputImage = await client.DownloadComfyOutputAsync(status.Outputs.Select(x => x.Files.FirstOrDefault()).FirstOrDefault() ?? throw new InvalidOperationException());
+        Assert.That(outputImage, Is.Not.Null);
+        // Save the output image to disk with random name
+        var outputFilePath = $"files/comfyui_output_{Guid.NewGuid().ToString().Substring(0, 5)}.png";
+        await File.WriteAllBytesAsync(outputFilePath, await outputImage.ReadFullyAsync());
+        Assert.That(File.Exists(outputFilePath), Is.True);
+        // Check that the output image is larger than the input image
+        using Image image = await Image.LoadAsync(outputFilePath);
+        int width = image.Width;
+        int height = image.Height;
+
+        using Image inputImage = await Image.LoadAsync("files/comfyui_upload_test.png");
+        int inputWidth = inputImage.Width;
+        int inputHeight = inputImage.Height;
+        
+        Assert.That(width, Is.GreaterThan(inputWidth));
+        Assert.That(height, Is.GreaterThan(inputHeight));
     }
 
     [Test]
@@ -242,6 +297,36 @@ public class ComfyUITests
         Assert.That(response.Subfolder, Is.EqualTo(""));
     }
 
+    [Test]
+    public async Task Can_use_ImageToImageUpscale_from_template_workflow()
+    {
+        var comfyInput = await client.UploadImageAssetAsync(
+            File.OpenRead("files/comfyui_upload_test.png"),
+            $"ComfyUI_test_{Guid.NewGuid().ToString().Substring(0, 5)}_00001_.png");
+        
+        // Init test DTO
+        var testDto = new ComfyImageToImageUpscale()
+        {
+            Image = comfyInput
+        };
+        
+        // Convert template to JSON
+        var jsonTemplate = await client.PopulateImageToImageUpscaleWorkflowAsync(testDto);
+        
+        // Assert that the JSON template is not null
+        Assert.That(jsonTemplate, Is.Not.Null);
+        // Assert that values are present in the JSON after templating
+        Assert.That(jsonTemplate.Contains("RealESRGAN_x2.pth"), Is.True);
+        // Parse and check nodes
+        var populatedWorkflow = JsonNode.Parse(jsonTemplate);
+        Assert.That(populatedWorkflow, Is.Not.Null);
+        Assert.That(populatedWorkflow["nodes"], Is.Not.Null);
+        Assert.That(populatedWorkflow["nodes"].AsArray().Count, Is.GreaterThan(0));
+        Assert.That(populatedWorkflow["nodes"].AsArray().Count, Is.EqualTo(4));
+        var nodes = populatedWorkflow["nodes"].AsArray();
+        Assert.That(nodes, Is.Not.Null);
+        Assert.That(nodes[0].GetValueKind(), Is.EqualTo(JsonValueKind.Object));
+    }
 
     [Test]
     public async Task Can_use_ImageToImage_from_template_workflow()

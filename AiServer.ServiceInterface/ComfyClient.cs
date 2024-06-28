@@ -18,6 +18,7 @@ public class ComfyClient(HttpClient httpClient)
     public string TextToImageTemplate { get; set; } = "text_to_image.json";
     public string ImageToTextTemplate { get; set; } = "image_to_text.json";
     public string ImageToImageTemplate { get; set; } = "image_to_image.json";
+    public string ImageToImageUpscaleTemplate { get; set; } = "image_to_image_upscale.json";
     public string TextToAudioTemplate { get; set; } = "text_to_audio.json";
     public string AudioToTextTemplate { get; set; } = "audio_to_text.json";
     
@@ -64,6 +65,11 @@ public class ComfyClient(HttpClient httpClient)
         return await PopulateWorkflow(request, ImageToImageTemplate);
     }
     
+    public async Task<string> PopulateImageToImageUpscaleWorkflowAsync(ComfyImageToImageUpscale request)
+    {
+        return await PopulateWorkflow(request, ImageToImageUpscaleTemplate);
+    }
+    
     public async Task<string> PopulateWorkflow<T>(T Request, string templatePath)
     {
         // Read template from file for Text to Image
@@ -78,9 +84,29 @@ public class ComfyClient(HttpClient httpClient)
         return await workflowPageResult.RenderToStringAsync();
     }
 
+    public async Task<ComfyWorkflowResponse> GenerateImageToImageUpscaleAsync(StableDiffusionImageToImageUpscale request)
+    {
+        var comfyRequest = request.ToComfy();
+        if(comfyRequest.InitImage == null)
+            throw new Exception("Image input is required for Image to Image Upscale");
+        
+        // Upload image asset
+        comfyRequest.Image = await UploadImageAssetAsync(comfyRequest.InitImage, $"image2image_upscale_{Guid.NewGuid()}.png");
+        
+        // Read template from file for Image to Image
+        var workflowJson = await PopulateImageToImageUpscaleWorkflowAsync(comfyRequest);
+        // Convert to ComfyUI API JSON format
+        var apiJson = await ConvertWorkflowToApiAsync(workflowJson);
+        // Call ComfyUI API
+        var response = await QueueWorkflowAsync(apiJson);
+        // Returns with job ID
+        using var jsConfig = JsConfig.With(new Config { TextCase = TextCase.SnakeCase });
+        return response.FromJson<ComfyWorkflowResponse>();
+    }
+
     public async Task<ComfyWorkflowResponse> GenerateImageToImageAsync(StableDiffusionImageToImage request)
     {
-        var comfyRequest = request.ToComfyImageToImage();
+        var comfyRequest = request.ToComfy();
         if (comfyRequest.Image == null && request.InitImage != null)
         {
             var tempFileName = $"image2image_{Guid.NewGuid()}.png";
@@ -104,7 +130,7 @@ public class ComfyClient(HttpClient httpClient)
     public async Task<ComfyWorkflowResponse> GenerateTextToImageAsync(StableDiffusionTextToImage request)
     {
         // Convert to Internal DTO
-        var comfyRequest = request.ToComfyTextToImage();
+        var comfyRequest = request.ToComfy();
         // Read template from file for Text to Image
         var workflowJson = await PopulateTextToImageWorkflowAsync(comfyRequest);
         // Convert to ComfyUI API JSON format
@@ -163,48 +189,18 @@ public class ComfyClient(HttpClient httpClient)
         return await response.Content.ReadAsStringAsync();
     }
     
-    public async Task<Tuple<string,byte[]>> GetPromptResultFile(string id)
-    {
-        string resultFileName;
-        var now = DateTime.UtcNow;
-        string lastPollResults = "";
-        // Poll for results
-        while (true)
-        {
-            if ((DateTime.UtcNow - now).TotalMilliseconds > TimeoutMs)
-            {
-                Console.WriteLine($"Timeout waiting for result: {id}\nLast status: {lastPollResults}");
-                throw new TimeoutException("Timeout waiting for result");
-            }
-            var poll = await GetPromptHistory(id);
-            lastPollResults = poll;
-            var pollDict = JsonNode.Parse(poll);
-            // check if pollDict is empty
-            if (pollDict.AsObject().Count == 0)
-            {
-                Thread.Sleep(PollIntervalMs);
-                continue;
-            }
-            if (pollDict[id]["status"]["completed"].GetValue<bool>())
-            {
-                var result = pollDict[id]["outputs"].AsObject().First().Value["images"].AsArray().First().AsObject()["filename"].ToString();
-                resultFileName = result;
-                break;
-            }
-            
-            Thread.Sleep(PollIntervalMs);
-        }
-        
-        // Save the result to a file
-        var data = await httpClient.GetByteArrayAsync($"/view?filename={resultFileName}&type=temp");
-        return Tuple.Create(resultFileName, data);
-    }
-
     public async Task<string> DeleteModelAsync(string name)
     {
         var response = await httpClient.PostAsync($"/agent/delete?name={name}", null);
         response.EnsureSuccessStatusCode();
         return await response.Content.ReadAsStringAsync();
+    }
+    
+    public async Task<Stream> DownloadComfyOutputAsync(ComfyFileOutput output)
+    {
+        var response = await httpClient.GetAsync($"/view?filename={output.Filename}&type={output.Type}&subfolder={output.Subfolder}");
+        response.EnsureSuccessStatusCode();
+        return await response.Content.ReadAsStreamAsync();
     }
 
     public async Task<string> ConvertWorkflowToApiAsync(string rawWorkflow)
@@ -465,6 +461,20 @@ public class ComfyImageToImage
     public Stream? InitImage { get; set; }
 }
 
+public class ComfyImageToImageUpscale
+{
+    public string UpscaleModel { get; set; } = "RealESRGAN_x2.pth";
+    public ComfyImageInput? Image { get; set; }
+    
+    public Stream? InitImage { get; set; }
+}
+
+public class StableDiffusionImageToImageUpscale
+{
+    public string UpscaleModel { get; set; } = "RealESRGAN_x2.pth";
+    public Stream? Image { get; set; }
+}
+
 public enum ComfySampler
 {
     euler,
@@ -493,7 +503,15 @@ public enum ComfySampler
 
 public static class ComfyUiExtensions
 {
-    public static ComfyTextToImage ToComfyTextToImage(this StableDiffusionTextToImage textToImage)
+    public static ComfyImageToImageUpscale ToComfy(this StableDiffusionImageToImageUpscale imageToImage)
+    {
+        return new ComfyImageToImageUpscale
+        {
+            InitImage = imageToImage.Image
+        };
+    }
+    
+    public static ComfyTextToImage ToComfy(this StableDiffusionTextToImage textToImage)
     {
         return new ComfyTextToImage
         {
@@ -501,7 +519,7 @@ public static class ComfyUiExtensions
             CfgScale = textToImage.CfgScale,
             Height = textToImage.Height,
             Width = textToImage.Width,
-            Sampler = textToImage.Sampler.ToComfySampler(),
+            Sampler = textToImage.Sampler.ToComfy(),
             BatchSize = textToImage.Samples,
             Steps = textToImage.Steps,
             Model = textToImage.EngineId,
@@ -512,7 +530,7 @@ public static class ComfyUiExtensions
         };
     }
 
-    public static ComfyImageToImage ToComfyImageToImage(this StableDiffusionImageToImage imageToImage)
+    public static ComfyImageToImage ToComfy(this StableDiffusionImageToImage imageToImage)
     {
         return new ComfyImageToImage
         {
@@ -522,7 +540,7 @@ public static class ComfyUiExtensions
             PositivePrompt = imageToImage.TextPrompts.Count == 1 ? imageToImage.TextPrompts[0].Text : 
                 imageToImage.TextPrompts.Any(x => x.Weight > 0) ? imageToImage.TextPrompts.FirstOrDefault(x => x.Weight > 0)?.Text : "",
             NegativePrompt = imageToImage.TextPrompts.Count < 1 ? "" : imageToImage.TextPrompts.FirstOrDefault(x => x.Weight < 0)?.Text,
-            Sampler = imageToImage.Sampler.ToComfySampler(),
+            Sampler = imageToImage.Sampler.ToComfy(),
             Steps = imageToImage.Steps,
             BatchSize = imageToImage.Samples,
             Model = imageToImage.EngineId,
@@ -532,7 +550,7 @@ public static class ComfyUiExtensions
         };
     }
     
-    public static ComfySampler ToComfySampler(this StableDiffusionSampler sampler)
+    public static ComfySampler ToComfy(this StableDiffusionSampler sampler)
     {
         return sampler switch
         {
