@@ -55,6 +55,17 @@ public class ComfyClient(HttpClient httpClient)
         return result.FromJson<ComfyImageInput>();
     }
     
+    public async Task<ComfyImageInput> UploadAudioAssetAsync(Stream fileStream, string filename)
+    {
+        var content = new MultipartFormDataContent();
+        content.Add(new StreamContent(fileStream), "audio", filename);
+        // Still uses /upload/image endpoint at the time of development, expecting this will change
+        var response = await httpClient.PostAsync("/upload/image?overwrite=true&type=temp", content);
+        response.EnsureSuccessStatusCode();
+        var result = await response.Content.ReadAsStringAsync();
+        return result.FromJson<ComfyImageInput>();
+    }
+    
     public async Task<string> PopulateTextToImageWorkflowAsync(ComfyTextToImage request)
     {
         return await PopulateWorkflow(request, TextToImageTemplate);
