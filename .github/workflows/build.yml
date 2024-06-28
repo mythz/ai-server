@@ -30,6 +30,7 @@ jobs:
 
       - name: test
         run: |
+          echo "COMFY_API_KEY=${{ secrets.COMFY_API_KEY }}" >> $GITHUB_ENV
           dotnet test
           if [ $? -eq 0 ]; then
             echo TESTS PASSED
