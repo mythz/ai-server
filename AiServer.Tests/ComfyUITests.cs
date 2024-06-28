@@ -11,7 +11,7 @@ namespace AiServer.Tests;
 
 public class ComfyUITests
 {
-    const string BaseUrl = "https://localhost:7860";
+    const string BaseUrl = "http://localhost:7860/api";
     readonly ComfyClient client = new (BaseUrl);
     
     [Test]
@@ -125,16 +125,69 @@ public class ComfyUITests
     }
 
     [Test]
+    public async Task Can_use_ComfyClient_ImageToImage()
+    {
+        var testDto = new StableDiffusionImageToImage()
+        {
+            CfgScale = 7,
+            EngineId = "zavychromaxl_v80.safetensors",
+            Sampler = StableDiffusionSampler.K_EULER_ANCESTRAL,
+            Steps = 20,
+            ImageStrength = 0.25d,
+            InitImage = File.OpenRead("files/comfyui_upload_test.png"),
+            Samples = 2,
+            TextPrompts = new List<TextPrompt>
+            {
+                new()
+                {
+                    Text = "photorealistic,realistic,stormy,scary,gloomy",
+                    Weight = 1.0d,
+                },
+                new()
+                {
+                    Text = "cartoon,painting,3d, lowres, text, watermark,low quality, blurry, noisy image",
+                    Weight = -1.0d,
+                }
+            }
+        };
+        
+        var response = await client.GenerateImageToImageAsync(testDto);
+        
+        Assert.That(response, Is.Not.Null);
+        Assert.That(response.PromptId, Is.Not.Empty);
+        
+        var status = await client.GetWorkflowStatusAsync(response.PromptId);
+        int jobTimeout = 20 * 1000; // 20 seconds
+        int pollInterval = 1000; // 1 second
+        var now = DateTime.UtcNow;
+        while (status.Completed == false && (DateTime.UtcNow - now).TotalMilliseconds < jobTimeout)
+        {
+            await Task.Delay(pollInterval);
+            status = await client.GetWorkflowStatusAsync(response.PromptId);
+        }
+        Assert.That(status, Is.Not.Null);
+        Assert.That(status.StatusMessage, Is.EqualTo("success"));
+        Assert.That(status.Completed, Is.EqualTo(true));
+        Assert.That(status.Outputs, Is.Not.Empty);
+        Assert.That(status.Outputs.Count, Is.EqualTo(1));
+        
+        Assert.That(status.Outputs[0].Files.Count, Is.EqualTo(2));
+        Assert.That(status.Outputs[0].Files[0].Type, Is.EqualTo("temp"));
+        Assert.That(status.Outputs[0].Files[0].Filename, Is.Not.Null);
+        Assert.That(status.Outputs[0].Files[0].Filename.Contains("ComfyUI_temp"), Is.True);
+    }
+
+    [Test]
     public async Task Can_use_ComfyClient_TextToImage()
     {
         // Init test DTO
         var testDto = new StableDiffusionTextToImage()
         {
             CfgScale = 7,
-            Seed = Random.Shared.NextInt64(),
+            Seed = Random.Shared.Next(),
             Height = 1024,
             Width = 1024,
-            Engine = "zavychromaxl_v80.safetensors",
+            EngineId = "zavychromaxl_v80.safetensors",
             Sampler = StableDiffusionSampler.K_EULER_ANCESTRAL,
             Samples = 1,
             Steps = 20,
@@ -172,14 +225,71 @@ public class ComfyUITests
         Assert.That(status.Completed, Is.EqualTo(true));
         Assert.That(status.Outputs, Is.Not.Empty);
         Assert.That(status.Outputs.Count, Is.EqualTo(1));
-        Assert.That(status.Outputs[0].Filename, Is.Not.Null);
-        Assert.That(status.Outputs[0].Filename.Contains("ComfyUI_temp"), Is.True);
-        Assert.That(status.Outputs[0].Type, Is.EqualTo("temp"));
+        Assert.That(status.Outputs[0].Files.Count, Is.EqualTo(1));
+        Assert.That(status.Outputs[0].Files[0].Type, Is.EqualTo("temp"));
+        Assert.That(status.Outputs[0].Files[0].Filename, Is.Not.Null);
+        Assert.That(status.Outputs[0].Files[0].Filename.Contains("ComfyUI_temp"), Is.True);
+    }
+
+    [Test]
+    public async Task Can_upload_image_asset()
+    {
+        var filePath = "files/comfyui_upload_test.png";
+        // Read stream
+        var fileStream = File.OpenRead(filePath);
+        // Alter name to be unique
+        var fileName = $"ComfyUI_{Guid.NewGuid().ToString().Substring(0, 5)}_00001_.png";
+        var response = await client.UploadImageAssetAsync(fileStream, fileName);
+        Assert.That(response, Is.Not.Null);
+        Assert.That(response.Name, Is.Not.Null);
+        Assert.That(response.Name, Is.EqualTo(fileName));
+        Assert.That(response.Type, Is.EqualTo("input"));
+        Assert.That(response.Subfolder, Is.EqualTo(""));
+    }
+
+
+    [Test]
+    public async Task Can_use_ImageToImage_from_template_workflow()
+    {
+        var comfyInput = await client.UploadImageAssetAsync(
+            File.OpenRead("files/comfyui_upload_test.png"),
+            $"ComfyUI_test_{Guid.NewGuid().ToString().Substring(0, 5)}_00001_.png");
+        
+        // Init test DTO
+        var testDto = new ComfyImageToImage()
+        {
+            CfgScale = 7,
+            Seed = Random.Shared.Next(),
+            Model = "zavychromaxl_v80.safetensors",
+            Sampler = ComfySampler.euler_ancestral,
+            Steps = 20,
+            Denoise = 0.75d,
+            PositivePrompt = "photorealistic,realistic,stormy,scary,gloomy",
+            NegativePrompt = "cartoon,painting,3d, lowres, text, watermark,low quality, blurry, noisy image",
+            Image = comfyInput
+        };
+        
+        // Convert template to JSON
+        var jsonTemplate = await client.PopulateImageToImageWorkflowAsync(testDto);
+        
+        // Assert that the JSON template is not null
+        Assert.That(jsonTemplate, Is.Not.Null);
+        // Assert that values are present in the JSON after templating
+        Assert.That(jsonTemplate.Contains("photorealistic,realistic,stormy,scary,gloomy"), Is.True);
+        // Parse and check nodes
+        var populatedWorkflow = JsonNode.Parse(jsonTemplate);
+        Assert.That(populatedWorkflow, Is.Not.Null);
+        Assert.That(populatedWorkflow["nodes"], Is.Not.Null);
+        Assert.That(populatedWorkflow["nodes"].AsArray().Count, Is.GreaterThan(0));
+        Assert.That(populatedWorkflow["nodes"].AsArray().Count, Is.EqualTo(8));
+        var nodes = populatedWorkflow["nodes"].AsArray();
+        Assert.That(nodes, Is.Not.Null);
+        Assert.That(nodes[0].GetValueKind(), Is.EqualTo(JsonValueKind.Object));
     }
 
     [Test]
     [Ignore("Integration test")]
-    public async Task Can_use_StableDiffusionTextToImage_to_template_workflow()
+    public async Task Can_use_TextToImage_from_template_workflow()
     {
         // Init test DTO
         var testDto = new ComfyTextToImage()

@@ -37,4 +37,15 @@
     </None>
   </ItemGroup>
 
+  <ItemGroup>
+    <None Remove="files\comfyui_upload_test.png" />
+    <Content Include="files\comfyui_upload_test.png">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <None Remove="workflows\image_to_image.json" />
+    <Content Include="workflows\image_to_image.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
+
 </Project>

@@ -1,44 +1,134 @@
 {
-  "last_node_id": 10,
-  "last_link_id": 10,
+  "last_node_id": 15,
+  "last_link_id": 15,
   "nodes": [
     {
-      "id": 7,
-      "type": "CLIPTextEncode",
+      "id": 10,
+      "type": "LoadImage",
       "pos": [
-        413,
-        389
+        2,
+        -69
+      ],
+      "size": [
+        315,
+        314
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            10
+          ],
+          "shape": 3,
+          "slot_index": 0
+        },
+        {
+          "name": "MASK",
+          "type": "MASK",
+          "links": null,
+          "shape": 3
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "LoadImage"
+      },
+      "widgets_values": [
+        "{{Image.Name}}",
+        "image"
+      ]
+    },
+    {
+      "id": 4,
+      "type": "CheckpointLoaderSimple",
+      "pos": [
+        26,
+        474
       ],
       "size": {
-        "0": 425.27801513671875,
-        "1": 180.6060791015625
+        "0": 315,
+        "1": 98
       },
       "flags": {},
-      "order": 3,
+      "order": 1,
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "MODEL",
+          "type": "MODEL",
+          "links": [
+            1
+          ],
+          "slot_index": 0
+        },
+        {
+          "name": "CLIP",
+          "type": "CLIP",
+          "links": [
+            3,
+            5
+          ],
+          "slot_index": 1
+        },
+        {
+          "name": "VAE",
+          "type": "VAE",
+          "links": [
+            8,
+            11
+          ],
+          "slot_index": 2
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "CheckpointLoaderSimple"
+      },
+      "widgets_values": [
+        "{{Model}}"
+      ]
+    },
+    {
+      "id": 8,
+      "type": "VAEDecode",
+      "pos": [
+        1215,
+        207
+      ],
+      "size": {
+        "0": 210,
+        "1": 46
+      },
+      "flags": {},
+      "order": 7,
       "mode": 0,
       "inputs": [
         {
-          "name": "clip",
-          "type": "CLIP",
-          "link": 5
+          "name": "samples",
+          "type": "LATENT",
+          "link": 7
+        },
+        {
+          "name": "vae",
+          "type": "VAE",
+          "link": 8
         }
       ],
       "outputs": [
         {
-          "name": "CONDITIONING",
-          "type": "CONDITIONING",
+          "name": "IMAGE",
+          "type": "IMAGE",
           "links": [
-            6
+            13
           ],
           "slot_index": 0
         }
       ],
       "properties": {
-        "Node name for S&R": "CLIPTextEncode"
-      },
-      "widgets_values": [
-        "{{NegativePrompt}}"
-      ]
+        "Node name for S&R": "VAEDecode"
+      }
     },
     {
       "id": 6,
@@ -79,36 +169,41 @@
       ]
     },
     {
-      "id": 5,
-      "type": "EmptyLatentImage",
+      "id": 7,
+      "type": "CLIPTextEncode",
       "pos": [
-        473,
-        609
+        413,
+        389
       ],
       "size": {
-        "0": 315,
-        "1": 106
+        "0": 425.27801513671875,
+        "1": 180.6060791015625
       },
       "flags": {},
-      "order": 0,
+      "order": 3,
       "mode": 0,
+      "inputs": [
+        {
+          "name": "clip",
+          "type": "CLIP",
+          "link": 5
+        }
+      ],
       "outputs": [
         {
-          "name": "LATENT",
-          "type": "LATENT",
+          "name": "CONDITIONING",
+          "type": "CONDITIONING",
           "links": [
-            2
+            6
           ],
           "slot_index": 0
         }
       ],
       "properties": {
-        "Node name for S&R": "EmptyLatentImage"
+        "Node name for S&R": "CLIPTextEncode"
       },
       "widgets_values": [
-        {{Width}},
-        {{Height}},
-        {{BatchSize}}
+        "{{NegativePrompt}}"
       ]
     },
     {
@@ -123,7 +218,7 @@
         "1": 262
       },
       "flags": {},
-      "order": 4,
+      "order": 6,
       "mode": 0,
       "inputs": [
         {
@@ -144,7 +239,7 @@
         {
           "name": "latent_image",
           "type": "LATENT",
-          "link": 2
+          "link": 15
         }
       ],
       "outputs": [
@@ -167,67 +262,60 @@
         {{CfgScale}},
         "{{Sampler}}",
         "{{Scheduler}}",
-        1
+        {{Denoise}}
       ]
     },
     {
-      "id": 4,
-      "type": "CheckpointLoaderSimple",
+      "id": 11,
+      "type": "VAEEncode",
       "pos": [
-        26,
-        474
-      ],
-      "size": {
-        "0": 315,
-        "1": 98
-      },
-      "flags": {},
-      "order": 1,
-      "mode": 0,
-      "outputs": [
-        {
-          "name": "MODEL",
-          "type": "MODEL",
-          "links": [
-            1
-          ],
-          "slot_index": 0
-        },
-        {
-          "name": "CLIP",
-          "type": "CLIP",
-          "links": [
-            3,
-            5
-          ],
-          "slot_index": 1
-        },
-        {
-          "name": "VAE",
-          "type": "VAE",
-          "links": [
-            8
-          ],
-          "slot_index": 2
-        }
-      ],
-      "properties": {
-        "Node name for S&R": "CheckpointLoaderSimple"
-      },
-      "widgets_values": [
-        "{{Model}}"
-      ]
-    },
-    {
-      "id": 8,
-      "type": "VAEDecode",
-      "pos": [
-        1209,
-        188
+        478,
+        -47
       ],
       "size": {
         "0": 210,
         "1": 46
+      },
+      "flags": {},
+      "order": 4,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "pixels",
+          "type": "IMAGE",
+          "link": 10
+        },
+        {
+          "name": "vae",
+          "type": "VAE",
+          "link": 11
+        }
+      ],
+      "outputs": [
+        {
+          "name": "LATENT",
+          "type": "LATENT",
+          "links": [
+            14
+          ],
+          "shape": 3,
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "VAEEncode"
+      }
+    },
+    {
+      "id": 15,
+      "type": "RepeatLatentBatch",
+      "pos": [
+        802,
+        -22
+      ],
+      "size": {
+        "0": 315,
+        "1": 58
       },
       "flags": {},
       "order": 5,
@@ -236,47 +324,46 @@
         {
           "name": "samples",
           "type": "LATENT",
-          "link": 7
-        },
-        {
-          "name": "vae",
-          "type": "VAE",
-          "link": 8
+          "link": 14
         }
       ],
       "outputs": [
         {
-          "name": "IMAGE",
-          "type": "IMAGE",
+          "name": "LATENT",
+          "type": "LATENT",
           "links": [
-            10
+            15
           ],
+          "shape": 3,
           "slot_index": 0
         }
       ],
       "properties": {
-        "Node name for S&R": "VAEDecode"
-      }
+        "Node name for S&R": "RepeatLatentBatch"
+      },
+      "widgets_values": [
+        {{BatchSize}}
+      ]
     },
     {
-      "id": 10,
+      "id": 12,
       "type": "PreviewImage",
       "pos": [
-        1607,
-        278
+        1534,
+        187
       ],
-      "size": {
-        "0": 210,
-        "1": 26
-      },
+      "size": [
+        210,
+        246
+      ],
       "flags": {},
-      "order": 6,
+      "order": 8,
       "mode": 0,
       "inputs": [
         {
           "name": "images",
           "type": "IMAGE",
-          "link": 10
+          "link": 13
         }
       ],
       "properties": {
@@ -292,14 +379,6 @@
       3,
       0,
       "MODEL"
-    ],
-    [
-      2,
-      5,
-      0,
-      3,
-      3,
-      "LATENT"
     ],
     [
       3,
@@ -351,21 +430,53 @@
     ],
     [
       10,
-      8,
-      0,
       10,
       0,
+      11,
+      0,
       "IMAGE"
+    ],
+    [
+      11,
+      4,
+      2,
+      11,
+      1,
+      "VAE"
+    ],
+    [
+      13,
+      8,
+      0,
+      12,
+      0,
+      "IMAGE"
+    ],
+    [
+      14,
+      11,
+      0,
+      15,
+      0,
+      "LATENT"
+    ],
+    [
+      15,
+      15,
+      0,
+      3,
+      3,
+      "LATENT"
     ]
   ],
   "groups": [],
   "config": {},
   "extra": {
     "ds": {
-      "scale": 1,
+      "scale": 0.8264462809917354,
       "offset": {
-        "0": -450,
-        "1": 29
+        "0": -33.14999771118164,
+        "1": 140.3000030517578
       }
     }
   },

@@ -44,18 +44,61 @@ public class ComfyClient(HttpClient httpClient)
         return await response.Content.ReadAsStringAsync();
     }
     
+    public async Task<ComfyImageInput> UploadImageAssetAsync(Stream fileStream, string filename)
+    {
+        var content = new MultipartFormDataContent();
+        content.Add(new StreamContent(fileStream), "image", filename);
+        var response = await httpClient.PostAsync("/upload/image?overwrite=true&type=temp", content);
+        response.EnsureSuccessStatusCode();
+        var result = await response.Content.ReadAsStringAsync();
+        return result.FromJson<ComfyImageInput>();
+    }
+    
     public async Task<string> PopulateTextToImageWorkflowAsync(ComfyTextToImage request)
     {
+        return await PopulateWorkflow(request, TextToImageTemplate);
+    }
+    
+    public async Task<string> PopulateImageToImageWorkflowAsync(ComfyImageToImage request)
+    {
+        return await PopulateWorkflow(request, ImageToImageTemplate);
+    }
+    
+    public async Task<string> PopulateWorkflow<T>(T Request, string templatePath)
+    {
         // Read template from file for Text to Image
-        var template = await File.ReadAllTextAsync(Path.Combine(WorkflowTemplatePath, TextToImageTemplate));
+        var template = await File.ReadAllTextAsync(Path.Combine(WorkflowTemplatePath, templatePath));
         // Populate template with request
         var workflowPageResult = new PageResult(context.OneTimePage(template))
         {
-            Args = request.ToObjectDictionary(),
+            Args = Request.ToObjectDictionary(),
         };
 
         // Render template to JSON
         return await workflowPageResult.RenderToStringAsync();
+    }
+
+    public async Task<ComfyWorkflowResponse> GenerateImageToImageAsync(StableDiffusionImageToImage request)
+    {
+        var comfyRequest = request.ToComfyImageToImage();
+        if (comfyRequest.Image == null && request.InitImage != null)
+        {
+            var tempFileName = $"image2image_{Guid.NewGuid()}.png";
+            comfyRequest.Image = await UploadImageAssetAsync(request.InitImage, tempFileName);
+        }
+
+        if (comfyRequest.Image == null)
+            throw new Exception("Image input is required for Image to Image");
+        
+        // Read template from file for Image to Image
+        var workflowJson = await PopulateImageToImageWorkflowAsync(comfyRequest);
+        // Convert to ComfyUI API JSON format
+        var apiJson = await ConvertWorkflowToApiAsync(workflowJson);
+        // Call ComfyUI API
+        var response = await QueueWorkflowAsync(apiJson);
+        // Returns with job ID
+        using var jsConfig = JsConfig.With(new Config { TextCase = TextCase.SnakeCase });
+        return response.FromJson<ComfyWorkflowResponse>();
     }
 
     public async Task<ComfyWorkflowResponse> GenerateTextToImageAsync(StableDiffusionTextToImage request)
@@ -316,10 +359,13 @@ public class ComfyClient(HttpClient httpClient)
                 var output = outputs[x].AsObject();
                 return new ComfyOutput
                 {
-                    Filename = output["images"].AsArray().First().AsObject()["filename"].ToString(),
-                    Type = output["images"].AsArray().First().AsObject()["type"].ToString(),
-                    // This is usually an empty string, but it will depend on the workflow
-                    Subfolder = output["images"].AsArray().First().AsObject()["subfolder"].ToString()
+                    Files = output["images"].AsArray().Select(y =>
+                    {
+                        var filename = y.AsObject()["filename"].ToString();
+                        var type = y.AsObject()["type"].ToString();
+                        var subfolder = y.AsObject()["subfolder"].ToString();
+                        return new ComfyFileOutput { Filename = filename, Type = type, Subfolder = subfolder };
+                    }).ToList()
                 };
             }).ToList()
         };
@@ -353,7 +399,19 @@ public class ComfyWorkflowStatus
 
 public class ComfyOutput
 {
+    public List<ComfyFileOutput> Files { get; set; } = new();
+}
+
+public class ComfyFileOutput
+{
     public string Filename { get; set; }
+    public string Type { get; set; }
+    public string Subfolder { get; set; }
+}
+
+public class ComfyImageInput
+{
+    public string Name { get; set; }
     public string Type { get; set; }
     public string Subfolder { get; set; }
 }
@@ -370,6 +428,27 @@ public class ComfyTextToImage
     public string Model { get; set; }
     public string PositivePrompt { get; set; }
     public string NegativePrompt { get; set; }
+
+    public string? Scheduler { get; set; } = "normal";
+}
+
+public class ComfyImageToImage
+{
+    public long Seed { get; set; }
+    public int CfgScale { get; set; }
+    public ComfySampler Sampler { get; set; }
+    public int Steps { get; set; }
+    
+    public int BatchSize { get; set; }
+
+    public double Denoise { get; set; } = 0.5d;
+    public string? Scheduler { get; set; } = "normal";
+    public string Model { get; set; }
+    public string PositivePrompt { get; set; }
+    public string NegativePrompt { get; set; }
+    public ComfyImageInput? Image { get; set; }
+    
+    public Stream? InitImage { get; set; }
 }
 
 public enum ComfySampler
@@ -411,13 +490,34 @@ public static class ComfyUiExtensions
             Sampler = textToImage.Sampler.ToComfySampler(),
             BatchSize = textToImage.Samples,
             Steps = textToImage.Steps,
-            Model = textToImage.Engine,
+            Model = textToImage.EngineId,
             // Check length of TextPrompts, if more than 1, use weight as guide where > 0 is positive, < 0 is negative
             PositivePrompt = textToImage.TextPrompts.Count == 1 ? textToImage.TextPrompts[0].Text : 
                 textToImage.TextPrompts.Any(x => x.Weight > 0) ? textToImage.TextPrompts.FirstOrDefault(x => x.Weight > 0)?.Text : "",
             NegativePrompt = textToImage.TextPrompts.Count < 1 ? "" : textToImage.TextPrompts.FirstOrDefault(x => x.Weight < 0)?.Text
         };
     }
+
+    public static ComfyImageToImage ToComfyImageToImage(this StableDiffusionImageToImage imageToImage)
+    {
+        return new ComfyImageToImage
+        {
+            Seed = Random.Shared.Next(),
+            CfgScale = imageToImage.CfgScale,
+            // Check length of TextPrompts, if more than 1, use weight as guide where > 0 is positive, < 0 is negative
+            PositivePrompt = imageToImage.TextPrompts.Count == 1 ? imageToImage.TextPrompts[0].Text : 
+                imageToImage.TextPrompts.Any(x => x.Weight > 0) ? imageToImage.TextPrompts.FirstOrDefault(x => x.Weight > 0)?.Text : "",
+            NegativePrompt = imageToImage.TextPrompts.Count < 1 ? "" : imageToImage.TextPrompts.FirstOrDefault(x => x.Weight < 0)?.Text,
+            Sampler = imageToImage.Sampler.ToComfySampler(),
+            Steps = imageToImage.Steps,
+            BatchSize = imageToImage.Samples,
+            Model = imageToImage.EngineId,
+            Denoise = 1 - imageToImage.ImageStrength,
+            Scheduler = "normal",
+            InitImage = imageToImage.InitImage
+        };
+    }
+    
     public static ComfySampler ToComfySampler(this StableDiffusionSampler sampler)
     {
         return sampler switch
@@ -450,8 +550,22 @@ public class StableDiffusionTextToImage
     public StableDiffusionSampler Sampler { get; set; }
     public int Samples { get; set; }
     public int Steps { get; set; }
-    public string Engine { get; set; }
+    public string EngineId { get; set; }
     public List<TextPrompt> TextPrompts { get; set; }
+}
+
+public class StableDiffusionImageToImage
+{
+    public double ImageStrength { get; set; }
+    public string InitImageMode { get; set; } = "IMAGE_STRENGTH";
+    public Stream? InitImage { get; set; }
+    public List<TextPrompt> TextPrompts { get; set; }
+    public int CfgScale { get; set; }
+    public StableDiffusionSampler Sampler { get; set; }
+    public int Samples { get; set; }
+    public int Steps { get; set; }
+    
+    public string EngineId { get; set; }
 }
 
 /*
