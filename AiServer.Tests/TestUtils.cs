@@ -38,6 +38,15 @@ public static class TestUtils
     public static JsonApiClient CreateAuthSecretClient()
     {
         var client = new JsonApiClient(AiServerBaseUrl);
+
+        // Ignore local SSL Errors
+        var handler = HttpUtils.HttpClientHandlerFactory();
+        handler.ServerCertificateCustomValidationCallback = (httpRequestMessage, cert, cetChain, policyErrors) => true;
+        var httpClient = new HttpClient(handler, disposeHandler:client.HttpMessageHandler == null) {
+            BaseAddress = new Uri(AiServerBaseUrl),
+        };
+        client = new JsonApiClient(httpClient);
+
         client.Headers![Keywords.AuthSecret] = Environment.GetEnvironmentVariable("AUTH_SECRET");
         return client;
     }
@@ -192,6 +201,24 @@ public static class TestUtils
             new() { Model = "gemma", },
             new() { Model = "codellama", },
             new() { Model = "mistral", }
+        ],
+        ApiType = OpenAiApiType
+    };
+
+    public static ApiProvider AmdApiProvider = new()
+    {
+        Name = "amd",
+        ApiTypeId = 1,
+        ApiBaseUrl = "https://amd.pvq.app",
+        Concurrency = 1,
+        Priority = 2,
+        Enabled = true,
+        Models = [
+            new() { Model = "llama3:8b", },
+            new() { Model = "phi3", },
+            new() { Model = "gemma", },
+            new() { Model = "codellama", },
+            new() { Model = "mistral", },
         ],
         ApiType = OpenAiApiType
     };
