@@ -1,6 +1,6 @@
 using System.Text.Json;
 using System.Text.Json.Nodes;
-using AiServer.ServiceInterface;
+using AiServer.ServiceInterface.Comfy;
 using AiServer.ServiceModel;
 using NUnit.Framework;
 using ServiceStack;
@@ -119,6 +119,42 @@ public class ComfyUITests
         models = await client.GetModelsListAsync();
         Assert.That(models, Is.Not.Null);
         Assert.That(models.Any(x => x.Name.Contains(testName)), Is.True);
+    }
+
+    [Test]
+    public async Task Can_use_ComfyClient_ImageToText()
+    {
+        var testDto = new StableDiffusionImageToText()
+        {
+            InitImage = File.OpenRead("files/comfyui_upload_test.png"),
+        };
+        
+        var response = await client.GenerateImageToTextAsync(testDto);
+        
+        Assert.That(response, Is.Not.Null);
+        Assert.That(response.PromptId, Is.Not.Empty);
+        
+        var status = await client.GetWorkflowStatusAsync(response.PromptId);
+        int jobTimeout = 90 * 1000; // 30 seconds
+        int pollInterval = 1000; // 1 second
+        var now = DateTime.UtcNow;
+        while (status.Completed == false && (DateTime.UtcNow - now).TotalMilliseconds < jobTimeout)
+        {
+            await Task.Delay(pollInterval);
+            status = await client.GetWorkflowStatusAsync(response.PromptId);
+        }
+        Assert.That(status, Is.Not.Null);
+        Assert.That(status.StatusMessage, Is.EqualTo("success"));
+        Assert.That(status.Completed, Is.EqualTo(true));
+        Assert.That(status.Outputs, Is.Not.Empty);
+        Assert.That(status.Outputs.Count, Is.EqualTo(1));
+        // Not image output
+        Assert.That(status.Outputs[0].Files.Count, Is.EqualTo(0));
+        // Has text output
+        Assert.That(status.Outputs[0].Texts.Count, Is.EqualTo(1));
+        Assert.That(status.Outputs[0].Texts[0].Text, Is.Not.Null);
+        Assert.That(status.Outputs[0].Texts[0].Text, Is.Not.Empty);
+        Assert.That(status.Outputs[0].Texts[0].Text.Contains("sunset", StringComparison.OrdinalIgnoreCase), Is.True);
     }
 
     [Test]

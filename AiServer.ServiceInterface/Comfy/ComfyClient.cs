@@ -5,7 +5,7 @@ using ServiceStack;
 using ServiceStack.Script;
 using ServiceStack.Text;
 
-namespace AiServer.ServiceInterface;
+namespace AiServer.ServiceInterface.Comfy;
 
 using System.Net.Http;
 using System.Text.Json.Nodes;
@@ -69,6 +69,11 @@ public class ComfyClient(HttpClient httpClient)
         return result.FromJson<ComfyImageInput>();
     }
     
+    public async Task<string> PopulateImageToTextWorkflowAsync(ComfyImageToText request)
+    {
+        return await PopulateWorkflow(request, ImageToTextTemplate);
+    }
+    
     public async Task<string> PopulateImageToImageWithMaskWorkflowAsync(ComfyImageToImageWithMask request)
     {
         return await PopulateWorkflow(request, ImageToImageWithMaskTemplate);
@@ -89,18 +94,41 @@ public class ComfyClient(HttpClient httpClient)
         return await PopulateWorkflow(request, ImageToImageUpscaleTemplate);
     }
     
-    public async Task<string> PopulateWorkflow<T>(T Request, string templatePath)
+    public async Task<string> PopulateWorkflow<T>(T request, string templatePath)
     {
         // Read template from file for Text to Image
         var template = await File.ReadAllTextAsync(Path.Combine(WorkflowTemplatePath, templatePath));
         // Populate template with request
         var workflowPageResult = new PageResult(context.OneTimePage(template))
         {
-            Args = Request.ToObjectDictionary(),
+            Args = request.ToObjectDictionary(),
         };
 
         // Render template to JSON
         return await workflowPageResult.RenderToStringAsync();
+    }
+    
+    public async Task<ComfyWorkflowResponse> GenerateImageToTextAsync(StableDiffusionImageToText request)
+    {
+        var comfyRequest = request.ToComfy();
+        if (comfyRequest.Image == null && request.InitImage != null)
+        {
+            var tempFileName = $"image2text_{Guid.NewGuid()}.png";
+            comfyRequest.Image = await UploadImageAssetAsync(request.InitImage, tempFileName);
+        }
+
+        if (comfyRequest.Image == null)
+            throw new Exception("Image input is required for Image to Text");
+        
+        // Read template from file for Image to Text
+        var workflowJson = await PopulateImageToTextWorkflowAsync(comfyRequest);
+        // Convert to ComfyUI API JSON format
+        var apiJson = await ConvertWorkflowToApiAsync(workflowJson);
+        // Call ComfyUI API
+        var response = await QueueWorkflowAsync(apiJson);
+        // Returns with job ID
+        using var jsConfig = JsConfig.With(new Config { TextCase = TextCase.SnakeCase });
+        return response.FromJson<ComfyWorkflowResponse>();
     }
 
     public async Task<ComfyWorkflowResponse> GenerateImageToImageWithMaskAsync(
@@ -431,16 +459,25 @@ public class ComfyClient(HttpClient httpClient)
             Outputs = outputNodeIds.Select(x =>
             {
                 var output = outputs[x].AsObject();
-                return new ComfyOutput
+                var result = new ComfyOutput();
+                if (output.ContainsKey("files"))
                 {
-                    Files = output["images"].AsArray().Select(y =>
+                    result.Files = output["files"].AsArray().Select(y => new ComfyFileOutput
                     {
-                        var filename = y.AsObject()["filename"].ToString();
-                        var type = y.AsObject()["type"].ToString();
-                        var subfolder = y.AsObject()["subfolder"].ToString();
-                        return new ComfyFileOutput { Filename = filename, Type = type, Subfolder = subfolder };
-                    }).ToList()
-                };
+                        Filename = y["filename"].ToString(),
+                        Type = y["type"].ToString(),
+                        Subfolder = y["subfolder"].ToString()
+                    }).ToList();
+                }
+                if (output.ContainsKey("text"))
+                {
+                    result.Texts = output["text"].AsArray().Select(y => new ComfyTextOutput
+                    {
+                        Text = y.ToString()
+                    }).ToList();
+                }
+
+                return result;
             }).ToList()
         };
         
@@ -462,366 +499,4 @@ public class ComfyClient(HttpClient httpClient)
         // Convert to ComfyWorkflowStatus
         return status;
     }
-}
-
-public class ComfyWorkflowStatus
-{
-    public string StatusMessage { get; set; }
-    public bool Completed { get; set; }
-    public List<ComfyOutput> Outputs { get; set; } = new();
-}
-
-public class ComfyAgentDownloadStatus
-{
-    public string? Name { get; set; }
-    public int? Progress { get; set; }
-}
-
-public class ComfyOutput
-{
-    public List<ComfyFileOutput> Files { get; set; } = new();
-}
-
-public class ComfyFileOutput
-{
-    public string Filename { get; set; }
-    public string Type { get; set; }
-    public string Subfolder { get; set; }
-}
-
-public class ComfyImageInput
-{
-    public string Name { get; set; }
-    public string Type { get; set; }
-    public string Subfolder { get; set; }
-}
-
-public class ComfyTextToImage
-{
-    public long Seed { get; set; }
-    public int CfgScale { get; set; }
-    public int Height { get; set; }
-    public int Width { get; set; }
-    public ComfySampler Sampler { get; set; }
-    public int BatchSize { get; set; }
-    public int Steps { get; set; }
-    public string Model { get; set; }
-    public string PositivePrompt { get; set; }
-    public string NegativePrompt { get; set; }
-
-    public string? Scheduler { get; set; } = "normal";
-}
-
-public class ComfyImageToImage
-{
-    public long Seed { get; set; }
-    public int CfgScale { get; set; }
-    public ComfySampler Sampler { get; set; }
-    public int Steps { get; set; }
-    
-    public int BatchSize { get; set; }
-
-    public double Denoise { get; set; } = 0.5d;
-    public string? Scheduler { get; set; } = "normal";
-    public string Model { get; set; }
-    public string PositivePrompt { get; set; }
-    public string NegativePrompt { get; set; }
-    public ComfyImageInput? Image { get; set; }
-    
-    public Stream? InitImage { get; set; }
-}
-
-public class ComfyImageToImageUpscale
-{
-    public string UpscaleModel { get; set; } = "RealESRGAN_x2.pth";
-    public ComfyImageInput? Image { get; set; }
-    
-    public Stream? InitImage { get; set; }
-}
-
-public class ComfyImageToImageWithMask
-{
-    public long Seed { get; set; }
-    public int CfgScale { get; set; }
-    public ComfySampler Sampler { get; set; }
-    public int Steps { get; set; }
-    public int BatchSize { get; set; }
-    public double Denoise { get; set; } = 0.5d;
-    public string? Scheduler { get; set; } = "normal";
-    public string Model { get; set; }
-    public string PositivePrompt { get; set; }
-    public string NegativePrompt { get; set; }
-    
-    public ComfyMaskSource MaskChannel { get; set; }
-    public Stream? InitImage { get; set; }
-    public ComfyImageInput? Image { get; set; }
-    public Stream? InitMask { get; set; }
-    public ComfyImageInput? MaskImage { get; set; }
-}
-
-public enum ComfyMaskSource
-{
-    red,
-    blue,
-    green,
-    alpha
-}
-
-public class StableDiffusionImageToImageUpscale
-{
-    public string UpscaleModel { get; set; } = "RealESRGAN_x2.pth";
-    public Stream? Image { get; set; }
-}
-
-public class StableDiffusionImageToImageWithMask
-{
-    public StableDiffusionMaskSource MaskSource { get; set; } = StableDiffusionMaskSource.White;
-    public Stream? InitImage { get; set; }
-    public Stream? MaskImage { get; set; }
-    public List<TextPrompt> TextPrompts { get; set; }
-    public int CfgScale { get; set; } = 7;
-    public StableDiffusionSampler Sampler { get; set; } = StableDiffusionSampler.K_EULER_ANCESTRAL;
-    public int Samples { get; set; } = 1;
-    public int Steps { get; set; } = 20;
-    public string EngineId { get; set; }
-    public double ImageStrength { get; set; } = 0.40d;
-}
-
-public enum StableDiffusionMaskSource
-{
-    White,
-    Black,
-    Alpha
-}
-
-public enum ComfySampler
-{
-    euler,
-    euler_ancestral,
-    huen,
-    huenpp2,
-    dpm_2,
-    dpm_2_ancestral,
-    lms,
-    dpm_fast,
-    dpm_adaptive,
-    dpmpp_2s_ancestral,
-    dpmpp_sde,
-    dpmpp_sde_gpu,
-    dpmpp_2m,
-    dpmpp_2m_sde,
-    dpmpp_2m_sde_gpu,
-    dpmpp_3m_sde,
-    dpmpp_3m_sde_gpu,
-    ddpm,
-    lcm,
-    ddim,
-    uni_pc,
-    uni_pc_bh2
-}
-
-public static class ComfyUiExtensions
-{
-    public static ComfyImageToImageUpscale ToComfy(this StableDiffusionImageToImageUpscale imageToImage)
-    {
-        return new ComfyImageToImageUpscale
-        {
-            InitImage = imageToImage.Image
-        };
-    }
-
-    public static ComfyImageToImageWithMask ToComfy(this StableDiffusionImageToImageWithMask imageWithMask)
-    {
-        return new ComfyImageToImageWithMask()
-        {
-            Seed = Random.Shared.Next(),
-            CfgScale = imageWithMask.CfgScale,
-            Sampler = imageWithMask.Sampler.ToComfy(),
-            Steps = imageWithMask.Steps,
-            BatchSize = imageWithMask.Samples,
-            Model = imageWithMask.EngineId,
-            Denoise = 1 - imageWithMask.ImageStrength,
-            Scheduler = "normal",
-            InitImage = imageWithMask.InitImage,
-            InitMask = imageWithMask.MaskImage,
-            PositivePrompt = imageWithMask.TextPrompts.ExtractPositivePrompt(),
-            NegativePrompt = imageWithMask.TextPrompts.ExtractNegativePrompt(),
-            MaskChannel = imageWithMask.MaskSource switch
-            {
-                StableDiffusionMaskSource.White => ComfyMaskSource.red,
-                // Could add support in future by using an invert mask step
-                StableDiffusionMaskSource.Black => throw new Exception("Black mask not supported"),
-                StableDiffusionMaskSource.Alpha => ComfyMaskSource.alpha,
-                _ => ComfyMaskSource.red
-            }
-        };
-    }
-    
-    public static ComfyTextToImage ToComfy(this StableDiffusionTextToImage textToImage)
-    {
-        return new ComfyTextToImage
-        {
-            Seed = textToImage.Seed,
-            CfgScale = textToImage.CfgScale,
-            Height = textToImage.Height,
-            Width = textToImage.Width,
-            Sampler = textToImage.Sampler.ToComfy(),
-            BatchSize = textToImage.Samples,
-            Steps = textToImage.Steps,
-            Model = textToImage.EngineId,
-            PositivePrompt = textToImage.TextPrompts.ExtractPositivePrompt(),
-            NegativePrompt = textToImage.TextPrompts.ExtractNegativePrompt(),
-        };
-    }
-
-    public static ComfyImageToImage ToComfy(this StableDiffusionImageToImage imageToImage)
-    {
-        return new ComfyImageToImage
-        {
-            Seed = Random.Shared.Next(),
-            CfgScale = imageToImage.CfgScale,
-            Sampler = imageToImage.Sampler.ToComfy(),
-            Steps = imageToImage.Steps,
-            BatchSize = imageToImage.Samples,
-            Model = imageToImage.EngineId,
-            Denoise = 1 - imageToImage.ImageStrength,
-            Scheduler = "normal",
-            InitImage = imageToImage.InitImage,
-            PositivePrompt = imageToImage.TextPrompts.ExtractPositivePrompt(),
-            NegativePrompt = imageToImage.TextPrompts.ExtractNegativePrompt()
-        };
-    }
-    
-    private static string ExtractPositivePrompt(this List<TextPrompt> prompts)
-    {
-        var positivePrompts = prompts.Where(x => x.Weight > 0)
-            .OrderBy(x => x.Weight).ToList();
-        string positivePrompt = "";
-        foreach (var prompt in positivePrompts)
-        {
-            positivePrompt += prompt.Text;
-            // Apply weight using `:x` format for weights not equal to 1
-            if (Math.Abs(prompt.Weight - 1) > 0.01)
-                positivePrompt += $":{prompt.Weight}";
-            
-            positivePrompt += ",";
-        }
-        // Remove trailing comma
-        return positivePrompt.TrimEnd(',');
-    }
-    
-    private static string ExtractNegativePrompt(this List<TextPrompt> prompts)
-    {
-        var negativePrompts = prompts.Where(x => x.Weight < 0)
-            .OrderBy(x => x.Weight).ToList();
-        string negativePrompt = "";
-        foreach (var prompt in negativePrompts)
-        {
-            negativePrompt += prompt.Text;
-            // Apply weight using `:x` format for weights not equal to -1
-            if (Math.Abs(prompt.Weight + 1) > 0.01)
-                negativePrompt += $":{prompt.Weight}";
-            
-            negativePrompt += ",";
-        }
-        // Remove trailing comma
-        return negativePrompt.TrimEnd(',');
-    }
-    
-    private static ComfySampler ToComfy(this StableDiffusionSampler sampler)
-    {
-        return sampler switch
-        {
-            StableDiffusionSampler.K_EULER => ComfySampler.euler,
-            StableDiffusionSampler.K_EULER_ANCESTRAL => ComfySampler.euler_ancestral,
-            StableDiffusionSampler.DDIM => ComfySampler.ddim,
-            StableDiffusionSampler.DDPM => ComfySampler.ddpm,
-            StableDiffusionSampler.K_DPM_2 => ComfySampler.dpm_2,
-            StableDiffusionSampler.K_DPM_2_ANCESTRAL => ComfySampler.dpm_2_ancestral,
-            StableDiffusionSampler.K_HEUN => ComfySampler.huen,
-            StableDiffusionSampler.K_LMS => ComfySampler.lms,
-            _ => ComfySampler.euler_ancestral
-        };
-    }
-
-}
-
-
-
-/// <summary>
-/// Text To Image Request to Match Stability AI API
-/// </summary>
-public class StableDiffusionTextToImage
-{
-    public long Seed { get; set; }
-    public int CfgScale { get; set; }
-    public int Height { get; set; }
-    public int Width { get; set; }
-    public StableDiffusionSampler Sampler { get; set; }
-    public int Samples { get; set; }
-    public int Steps { get; set; }
-    public string EngineId { get; set; }
-    public List<TextPrompt> TextPrompts { get; set; }
-}
-
-public class StableDiffusionImageToImage
-{
-    public double ImageStrength { get; set; }
-    public string InitImageMode { get; set; } = "IMAGE_STRENGTH";
-    public Stream? InitImage { get; set; }
-    public List<TextPrompt> TextPrompts { get; set; }
-    public int CfgScale { get; set; }
-    public StableDiffusionSampler Sampler { get; set; }
-    public int Samples { get; set; }
-    public int Steps { get; set; }
-    
-    public string EngineId { get; set; }
-}
-
-/*
-{
-"prompt_id": "f33f3b7a-a72a-4e06-8184-823a6fe5071f",
-"number": 2,
-"node_errors": {}
-}
-*/
-public class ComfyWorkflowResponse
-{
-    public string PromptId { get; set; }
-    public int Number { get; set; }
-    public List<NodeError> NodeErrors { get; set; }
-}
-
-public class NodeError
-{
-    
-}
-
-public enum StableDiffusionSampler
-{
-    DDIM,
-    DDPM,
-    K_DPMPP_2M,
-    K_DPMPP_2S_ANCESTRAL,
-    K_DPM_2,
-    K_DPM_2_ANCESTRAL,
-    K_EULER,
-    K_EULER_ANCESTRAL,
-    K_HEUN,
-    K_LMS
-}
-
-public class TextPrompt
-{
-    public string Text { get; set; }
-    public double Weight { get; set; }
-}
-
-
-public class ComfyModel
-{
-    public string Description { get; set; }
-    public string Id { get; set; }
-    public string Name { get; set; }
-    public string Type { get; set; }
 }
