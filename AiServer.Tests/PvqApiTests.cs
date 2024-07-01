@@ -1,4 +1,5 @@
-﻿using AiServer.ServiceModel;
+﻿using System.Net;
+using AiServer.ServiceModel;
 using NUnit.Framework;
 using ServiceStack;
 using ServiceStack.Text;
@@ -22,6 +23,23 @@ public class PvqApiTests
             [
                 new() { Model = "gemma:2b", },
                 new() { Model = "qwen:4b", },
+                new() { Model = "phi3", },
+                new() { Model = "mistral", },
+                new() { Model = "llama3:8b", },
+                new() { Model = "gemma", },
+                new() { Model = "codellama", },
+            ]
+        },
+        new CreateApiProvider
+        {
+            Name = "amd",
+            ApiTypeId = 1,
+            ApiBaseUrl = "https://amd.pvq.app",
+            Concurrency = 1,
+            Priority = 4,
+            Enabled = true,
+            Models =
+            [
                 new() { Model = "phi3", },
                 new() { Model = "mistral", },
                 new() { Model = "llama3:8b", },
@@ -323,6 +341,16 @@ public class PvqApiTests
         var client = TestUtils.CreatePublicAuthSecretClient();
         await CreateApiKeys(client);
         await CreateAuthProviders(client);
+    }
+
+    [Test]
+    public async Task Create_Remote_ApiProvider()
+    {
+        var client = TestUtils.CreatePublicAuthSecretClient();
+        ClientConfig.UseSystemJson = UseSystemJson.Always;
+
+        var createApiProvider = ApiProviders.First(x => x.Name == "amd");
+        var api = await client.ApiAsync(createApiProvider);
     }
 
     [Test]
