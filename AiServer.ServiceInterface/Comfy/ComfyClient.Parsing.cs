@@ -177,9 +177,9 @@ public partial class ComfyClient
             {
                 var output = outputs[x].AsObject();
                 var result = new ComfyOutput();
-                if (output.ContainsKey("files"))
+                if (output.ContainsKey("images"))
                 {
-                    result.Files = output["files"].AsArray().Select(y => new ComfyFileOutput
+                    result.Files = output["images"].AsArray().Select(y => new ComfyFileOutput
                     {
                         Filename = y["filename"].ToString(),
                         Type = y["type"].ToString(),
