@@ -3,6 +3,20 @@ namespace AiServer.ServiceInterface.Comfy;
 
 public static class ComfyExtensions
 {
+    public static ComfyTextToAudio ToComfy(this StableAudioTextToAudio textToAudio)
+    {
+        return new ComfyTextToAudio
+        {
+            Seed = textToAudio.Seed,
+            CfgScale = textToAudio.CfgScale,
+            Sampler = textToAudio.Sampler.ToComfy(),
+            Steps = textToAudio.Steps,
+            Model = textToAudio.EngineId,
+            SampleLength = textToAudio.SampleLength,
+            PositivePrompt = textToAudio.TextPrompts.ExtractPositivePrompt(),
+            NegativePrompt = textToAudio.TextPrompts.ExtractNegativePrompt()
+        };
+    }
     public static ComfyImageToText ToComfy(this StableDiffusionImageToText imageToText)
     {
         return new ComfyImageToText

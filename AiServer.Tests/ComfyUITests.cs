@@ -122,6 +122,46 @@ public class ComfyUITests
     }
 
     [Test]
+    public async Task Can_use_ComfyClient_TextToAudio()
+    {
+        var testDto = new StableAudioTextToAudio
+        {
+            Sampler = StableDiffusionSampler.K_DPMPP_2S_ANCESTRAL,
+            TextPrompts = new List<TextPrompt>
+            {
+                new()
+                {
+                    Text = "electronic, ambient,orchestral,sad,memories,cyberpunk,rain,afterlife",
+                    Weight = 1.0d
+                },
+                new()
+                {
+                    Text = "loud,metal,rock,fast,aggressive,angry,violent,chaotic",
+                    Weight = -1.0d
+                }
+            }
+        };
+        
+        var response = await client.GenerateTextToAudioAsync(testDto);
+        
+        Assert.That(response, Is.Not.Null);
+        Assert.That(response.PromptId, Is.Not.Empty);
+        
+        var status = await client.GetWorkflowStatusAsync(response.PromptId);
+        int jobTimeout = 30 * 1000; // 30 seconds
+        int pollInterval = 1000; // 1 second
+        var now = DateTime.UtcNow;
+        while (status.Completed == false && (DateTime.UtcNow - now).TotalMilliseconds < jobTimeout)
+        {
+            await Task.Delay(pollInterval);
+            status = await client.GetWorkflowStatusAsync(response.PromptId);
+        }
+        Assert.That(status, Is.Not.Null);
+        Assert.That(status.StatusMessage, Is.EqualTo("success"));
+        Assert.That(status.Completed, Is.EqualTo(true));
+    }
+
+    [Test]
     public async Task Can_use_ComfyClient_ImageToText()
     {
         var testDto = new StableDiffusionImageToText()
