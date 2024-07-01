@@ -12,6 +12,8 @@ public static class ComfyExtensions
             Sampler = textToAudio.Sampler.ToComfy(),
             Steps = textToAudio.Steps,
             Model = textToAudio.EngineId,
+            Clip = textToAudio.ClipEngineId,
+            Scheduler = "normal",
             SampleLength = textToAudio.SampleLength,
             PositivePrompt = textToAudio.TextPrompts.ExtractPositivePrompt(),
             NegativePrompt = textToAudio.TextPrompts.ExtractNegativePrompt()

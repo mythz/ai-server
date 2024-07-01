@@ -89,6 +89,11 @@ public partial class ComfyClient(HttpClient httpClient)
         return await PopulateWorkflow(request, ImageToImageTemplate);
     }
     
+    private async Task<string> PopulateTextToAudioWorkflowAsync(ComfyTextToAudio request)
+    {
+        return await PopulateWorkflow(request, TextToAudioTemplate);
+    }
+    
     public async Task<string> PopulateImageToImageUpscaleWorkflowAsync(ComfyImageToImageUpscale request)
     {
         return await PopulateWorkflow(request, ImageToImageUpscaleTemplate);
@@ -120,11 +125,6 @@ public partial class ComfyClient(HttpClient httpClient)
         // Returns with job ID
         using var jsConfig = JsConfig.With(new Config { TextCase = TextCase.SnakeCase });
         return response.FromJson<ComfyWorkflowResponse>();
-    }
-
-    private async Task<string> PopulateTextToAudioWorkflowAsync(ComfyTextToAudio comfyRequest)
-    {
-        throw new NotImplementedException();
     }
 
     public async Task<ComfyWorkflowResponse> GenerateImageToTextAsync(StableDiffusionImageToText request)
@@ -322,32 +322,4 @@ public partial class ComfyClient(HttpClient httpClient)
         // Convert to ComfyWorkflowStatus
         return status;
     }
-}
-
-public class ComfyTextToAudio
-{    
-    public string Clip { get; set; }
-    public string Model { get; set; }
-    public int Steps { get; set; }
-    public int CfgScale { get; set; }
-    public int Seed { get; set; }
-    public ComfySampler Sampler { get; set; }
-    public string Scheduler { get; set; }
-    public string PositivePrompt { get; set; }
-    public string NegativePrompt { get; set; }
-    
-    public double? SampleLength { get; set; } = 47.6d;
-}
-
-public class StableAudioTextToAudio
-{
-    public int Seed { get; set; } = Random.Shared.Next();
-    public List<TextPrompt> TextPrompts { get; set; }
-    public int CfgScale { get; set; } = 4;
-    public StableDiffusionSampler Sampler { get; set; } = StableDiffusionSampler.K_DPMPP_2S_ANCESTRAL;
-    public int Steps { get; set; } = 50;
-    public string EngineId { get; set; } = "stable_audio_open_1.0.safetensors";
-
-    public double? SampleLength { get; set; } = 47.6d;
-
 }

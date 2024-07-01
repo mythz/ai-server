@@ -206,6 +206,36 @@ public class StableDiffusionImageToImage
     public string EngineId { get; set; }
 }
 
+
+public class ComfyTextToAudio
+{    
+    public string Clip { get; set; }
+    public string Model { get; set; }
+    public int Steps { get; set; }
+    public int CfgScale { get; set; }
+    public int Seed { get; set; }
+    public ComfySampler Sampler { get; set; }
+    public string Scheduler { get; set; }
+    public string PositivePrompt { get; set; }
+    public string NegativePrompt { get; set; }
+    
+    public double? SampleLength { get; set; } = 47.6d;
+}
+
+public class StableAudioTextToAudio
+{
+    public int Seed { get; set; } = Random.Shared.Next();
+    public List<TextPrompt> TextPrompts { get; set; }
+    public int CfgScale { get; set; } = 4;
+    public StableDiffusionSampler Sampler { get; set; } = StableDiffusionSampler.K_DPMPP_2S_ANCESTRAL;
+    public int Steps { get; set; } = 50;
+    public string EngineId { get; set; } = "stable_audio_open_1.0.safetensors";
+    public string ClipEngineId { get; set; } = "t5_base.safetensors";
+
+    public double? SampleLength { get; set; } = 47.6d;
+
+}
+
 /*
 {
 "prompt_id": "f33f3b7a-a72a-4e06-8184-823a6fe5071f",

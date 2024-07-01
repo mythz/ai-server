@@ -63,6 +63,10 @@
     <Content Include="workflows\image_to_text.json">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
+    <None Remove="workflows\text_to_audio.json" />
+    <Content Include="workflows\text_to_audio.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
   </ItemGroup>
 
 </Project>
