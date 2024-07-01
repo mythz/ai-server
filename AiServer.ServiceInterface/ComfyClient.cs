@@ -1,4 +1,5 @@
 using System.Net.Http.Json;
+using System.Runtime.Serialization;
 using System.Text;
 using ServiceStack;
 using ServiceStack.Script;
@@ -19,6 +20,7 @@ public class ComfyClient(HttpClient httpClient)
     public string ImageToTextTemplate { get; set; } = "image_to_text.json";
     public string ImageToImageTemplate { get; set; } = "image_to_image.json";
     public string ImageToImageUpscaleTemplate { get; set; } = "image_to_image_upscale.json";
+    public string ImageToImageWithMaskTemplate { get; set; } = "image_to_image_with_mask.json";
     public string TextToAudioTemplate { get; set; } = "text_to_audio.json";
     public string AudioToTextTemplate { get; set; } = "audio_to_text.json";
     
@@ -52,6 +54,7 @@ public class ComfyClient(HttpClient httpClient)
         var response = await httpClient.PostAsync("/upload/image?overwrite=true&type=temp", content);
         response.EnsureSuccessStatusCode();
         var result = await response.Content.ReadAsStringAsync();
+        await Task.Delay(1000);
         return result.FromJson<ComfyImageInput>();
     }
     
@@ -64,6 +67,11 @@ public class ComfyClient(HttpClient httpClient)
         response.EnsureSuccessStatusCode();
         var result = await response.Content.ReadAsStringAsync();
         return result.FromJson<ComfyImageInput>();
+    }
+    
+    public async Task<string> PopulateImageToImageWithMaskWorkflowAsync(ComfyImageToImageWithMask request)
+    {
+        return await PopulateWorkflow(request, ImageToImageWithMaskTemplate);
     }
     
     public async Task<string> PopulateTextToImageWorkflowAsync(ComfyTextToImage request)
@@ -93,6 +101,44 @@ public class ComfyClient(HttpClient httpClient)
 
         // Render template to JSON
         return await workflowPageResult.RenderToStringAsync();
+    }
+
+    public async Task<ComfyWorkflowResponse> GenerateImageToImageWithMaskAsync(
+        StableDiffusionImageToImageWithMask request)
+    {
+        var comfyRequest = request.ToComfy();
+        if (comfyRequest.InitImage == null)
+            throw new Exception("Image input is required for Image to Image with Mask");
+        if (comfyRequest.InitMask == null)
+            throw new Exception("Mask image input is required for Image to Image with Mask");
+        
+        if (comfyRequest.Image == null && request.InitImage != null)
+        {
+            var tempFileName = $"image2image_mask_{Guid.NewGuid()}.png";
+            comfyRequest.Image = await UploadImageAssetAsync(request.InitImage, tempFileName);
+        }
+        
+        if (comfyRequest.MaskImage == null && request.MaskImage != null)
+        {
+            var tempFileName = $"image2image_mask_{Guid.NewGuid()}.png";
+            comfyRequest.MaskImage = await UploadImageAssetAsync(request.MaskImage, tempFileName);
+        }
+        
+        if (comfyRequest.Image == null)
+            throw new Exception("Image input failed to upload for Image to Image with Mask");
+        
+        if (comfyRequest.MaskImage == null)
+            throw new Exception("Mask input failed to upload for Image to Image with Mask");
+        
+        // Read template from file for Image to Image with Mask
+        var workflowJson = await PopulateImageToImageWithMaskWorkflowAsync(comfyRequest);
+        // Convert to ComfyUI API JSON format
+        var apiJson = await ConvertWorkflowToApiAsync(workflowJson);
+        // Call ComfyUI API
+        var response = await QueueWorkflowAsync(apiJson);
+        // Returns with job ID
+        using var jsConfig = JsConfig.With(new Config { TextCase = TextCase.SnakeCase });
+        return response.FromJson<ComfyWorkflowResponse>();
     }
 
     public async Task<ComfyWorkflowResponse> GenerateImageToImageUpscaleAsync(StableDiffusionImageToImageUpscale request)
@@ -261,8 +307,11 @@ public class ComfyClient(HttpClient httpClient)
         if (!workflow.TryGetPropertyValue("nodes", out var workflowNodes))
             throw new Exception("Invalid workflow JSON");
 
+        // Sort workflow nodes by ID
+        var orderedNodes = workflowNodes.AsArray().OrderBy(x => int.Parse(x["id"].ToString())).ToList();
+        
         // Convert nodes
-        foreach (var jToken in workflowNodes.AsArray())
+        foreach (var jToken in orderedNodes)
         {
             var node = jToken.AsObject();
             if (node == null)
@@ -274,7 +323,6 @@ public class ComfyClient(HttpClient httpClient)
             await AddToMappingAsync(classType);
 
             var apiNode = new JsonObject();
-            apiNode["class_type"] = classType;
             apiNode["inputs"] = new JsonObject();
             if (metadataMapping.TryGetValue(classType, out var currentClass))
             {
@@ -306,6 +354,7 @@ public class ComfyClient(HttpClient httpClient)
                     }
                 }
             }
+            apiNode["class_type"] = classType;
             apiNodes[nodeId] = apiNode;
         }
 
@@ -363,6 +412,16 @@ public class ComfyClient(HttpClient httpClient)
         var prompt = job["prompt"].AsArray();
         var outputs = job["outputs"].AsObject();
         var status = job["status"].AsObject();
+
+        if (outputs.Count == 0 &&
+            status["messages"].AsArray() != null && status["messages"].AsArray().Count > 2 &&
+            status["messages"][2].AsArray() != null && status["messages"][2].AsArray().Count > 0 &&
+            status["messages"][2][0].ToString() == "execution_error")
+        {
+            // Check for error messages
+            var errorMessages = status["messages"][2][1].AsObject();
+            throw new Exception($"Error in job {jobId}: {errorMessages.ToJsonString()}");
+        }
 
         var outputNodeIds = prompt[4].AsArray().GetValues<string>();
         var result = new ComfyWorkflowStatus
@@ -480,10 +539,59 @@ public class ComfyImageToImageUpscale
     public Stream? InitImage { get; set; }
 }
 
+public class ComfyImageToImageWithMask
+{
+    public long Seed { get; set; }
+    public int CfgScale { get; set; }
+    public ComfySampler Sampler { get; set; }
+    public int Steps { get; set; }
+    public int BatchSize { get; set; }
+    public double Denoise { get; set; } = 0.5d;
+    public string? Scheduler { get; set; } = "normal";
+    public string Model { get; set; }
+    public string PositivePrompt { get; set; }
+    public string NegativePrompt { get; set; }
+    
+    public ComfyMaskSource MaskChannel { get; set; }
+    public Stream? InitImage { get; set; }
+    public ComfyImageInput? Image { get; set; }
+    public Stream? InitMask { get; set; }
+    public ComfyImageInput? MaskImage { get; set; }
+}
+
+public enum ComfyMaskSource
+{
+    red,
+    blue,
+    green,
+    alpha
+}
+
 public class StableDiffusionImageToImageUpscale
 {
     public string UpscaleModel { get; set; } = "RealESRGAN_x2.pth";
     public Stream? Image { get; set; }
+}
+
+public class StableDiffusionImageToImageWithMask
+{
+    public StableDiffusionMaskSource MaskSource { get; set; } = StableDiffusionMaskSource.White;
+    public Stream? InitImage { get; set; }
+    public Stream? MaskImage { get; set; }
+    public List<TextPrompt> TextPrompts { get; set; }
+    public int CfgScale { get; set; } = 7;
+    public StableDiffusionSampler Sampler { get; set; } = StableDiffusionSampler.K_EULER_ANCESTRAL;
+    public int Samples { get; set; } = 1;
+    public int Steps { get; set; } = 20;
+    public string EngineId { get; set; }
+    public double ImageStrength { get; set; } = 0.40d;
+}
+
+public enum StableDiffusionMaskSource
+{
+    White,
+    Black,
+    Alpha
 }
 
 public enum ComfySampler
@@ -521,6 +629,33 @@ public static class ComfyUiExtensions
             InitImage = imageToImage.Image
         };
     }
+
+    public static ComfyImageToImageWithMask ToComfy(this StableDiffusionImageToImageWithMask imageWithMask)
+    {
+        return new ComfyImageToImageWithMask()
+        {
+            Seed = Random.Shared.Next(),
+            CfgScale = imageWithMask.CfgScale,
+            Sampler = imageWithMask.Sampler.ToComfy(),
+            Steps = imageWithMask.Steps,
+            BatchSize = imageWithMask.Samples,
+            Model = imageWithMask.EngineId,
+            Denoise = 1 - imageWithMask.ImageStrength,
+            Scheduler = "normal",
+            InitImage = imageWithMask.InitImage,
+            InitMask = imageWithMask.MaskImage,
+            PositivePrompt = imageWithMask.TextPrompts.ExtractPositivePrompt(),
+            NegativePrompt = imageWithMask.TextPrompts.ExtractNegativePrompt(),
+            MaskChannel = imageWithMask.MaskSource switch
+            {
+                StableDiffusionMaskSource.White => ComfyMaskSource.red,
+                // Could add support in future by using an invert mask step
+                StableDiffusionMaskSource.Black => throw new Exception("Black mask not supported"),
+                StableDiffusionMaskSource.Alpha => ComfyMaskSource.alpha,
+                _ => ComfyMaskSource.red
+            }
+        };
+    }
     
     public static ComfyTextToImage ToComfy(this StableDiffusionTextToImage textToImage)
     {
@@ -534,10 +669,8 @@ public static class ComfyUiExtensions
             BatchSize = textToImage.Samples,
             Steps = textToImage.Steps,
             Model = textToImage.EngineId,
-            // Check length of TextPrompts, if more than 1, use weight as guide where > 0 is positive, < 0 is negative
-            PositivePrompt = textToImage.TextPrompts.Count == 1 ? textToImage.TextPrompts[0].Text : 
-                textToImage.TextPrompts.Any(x => x.Weight > 0) ? textToImage.TextPrompts.FirstOrDefault(x => x.Weight > 0)?.Text : "",
-            NegativePrompt = textToImage.TextPrompts.Count < 1 ? "" : textToImage.TextPrompts.FirstOrDefault(x => x.Weight < 0)?.Text
+            PositivePrompt = textToImage.TextPrompts.ExtractPositivePrompt(),
+            NegativePrompt = textToImage.TextPrompts.ExtractNegativePrompt(),
         };
     }
 
@@ -547,21 +680,55 @@ public static class ComfyUiExtensions
         {
             Seed = Random.Shared.Next(),
             CfgScale = imageToImage.CfgScale,
-            // Check length of TextPrompts, if more than 1, use weight as guide where > 0 is positive, < 0 is negative
-            PositivePrompt = imageToImage.TextPrompts.Count == 1 ? imageToImage.TextPrompts[0].Text : 
-                imageToImage.TextPrompts.Any(x => x.Weight > 0) ? imageToImage.TextPrompts.FirstOrDefault(x => x.Weight > 0)?.Text : "",
-            NegativePrompt = imageToImage.TextPrompts.Count < 1 ? "" : imageToImage.TextPrompts.FirstOrDefault(x => x.Weight < 0)?.Text,
             Sampler = imageToImage.Sampler.ToComfy(),
             Steps = imageToImage.Steps,
             BatchSize = imageToImage.Samples,
             Model = imageToImage.EngineId,
             Denoise = 1 - imageToImage.ImageStrength,
             Scheduler = "normal",
-            InitImage = imageToImage.InitImage
+            InitImage = imageToImage.InitImage,
+            PositivePrompt = imageToImage.TextPrompts.ExtractPositivePrompt(),
+            NegativePrompt = imageToImage.TextPrompts.ExtractNegativePrompt()
         };
     }
     
-    public static ComfySampler ToComfy(this StableDiffusionSampler sampler)
+    private static string ExtractPositivePrompt(this List<TextPrompt> prompts)
+    {
+        var positivePrompts = prompts.Where(x => x.Weight > 0)
+            .OrderBy(x => x.Weight).ToList();
+        string positivePrompt = "";
+        foreach (var prompt in positivePrompts)
+        {
+            positivePrompt += prompt.Text;
+            // Apply weight using `:x` format for weights not equal to 1
+            if (Math.Abs(prompt.Weight - 1) > 0.01)
+                positivePrompt += $":{prompt.Weight}";
+            
+            positivePrompt += ",";
+        }
+        // Remove trailing comma
+        return positivePrompt.TrimEnd(',');
+    }
+    
+    private static string ExtractNegativePrompt(this List<TextPrompt> prompts)
+    {
+        var negativePrompts = prompts.Where(x => x.Weight < 0)
+            .OrderBy(x => x.Weight).ToList();
+        string negativePrompt = "";
+        foreach (var prompt in negativePrompts)
+        {
+            negativePrompt += prompt.Text;
+            // Apply weight using `:x` format for weights not equal to -1
+            if (Math.Abs(prompt.Weight + 1) > 0.01)
+                negativePrompt += $":{prompt.Weight}";
+            
+            negativePrompt += ",";
+        }
+        // Remove trailing comma
+        return negativePrompt.TrimEnd(',');
+    }
+    
+    private static ComfySampler ToComfy(this StableDiffusionSampler sampler)
     {
         return sampler switch
         {

@@ -122,6 +122,56 @@ public class ComfyUITests
     }
 
     [Test]
+    public async Task Can_use_ComfyClient_ImageToImageWithMask()
+    {
+        var testDto = new StableDiffusionImageToImageWithMask()
+        {
+            InitImage = File.OpenRead("files/comfyui_upload_test.png"),
+            MaskImage = File.OpenRead("files/comfyui_upload_test_mask.png"),
+            EngineId = "zavychromaxl_v80.safetensors",
+            TextPrompts = new List<TextPrompt>
+            {
+                new()
+                {
+                    Text = "photorealistic,realistic,stormy,scary,gloomy",
+                    Weight = 1.0d,
+                },
+                new()
+                {
+                    Text = "cartoon,painting,3d, lowres, text, watermark,low quality, blurry, noisy image",
+                    Weight = -1.0d,
+                }
+            }
+        };
+        
+        var response = await client.GenerateImageToImageWithMaskAsync(testDto);
+        
+        Assert.That(response, Is.Not.Null);
+        Assert.That(response.PromptId, Is.Not.Empty);
+        
+        var status = await client.GetWorkflowStatusAsync(response.PromptId);
+        int jobTimeout = 30 * 1000; // 30 seconds
+        int pollInterval = 1000; // 1 second
+        var now = DateTime.UtcNow;
+        while (status.Completed == false && (DateTime.UtcNow - now).TotalMilliseconds < jobTimeout)
+        {
+            await Task.Delay(pollInterval);
+            status = await client.GetWorkflowStatusAsync(response.PromptId);
+        }
+        
+        Assert.That(status, Is.Not.Null);
+        Assert.That(status.StatusMessage, Is.EqualTo("success"));
+        Assert.That(status.Completed, Is.EqualTo(true));
+        Assert.That(status.Outputs, Is.Not.Empty);
+        Assert.That(status.Outputs.Count, Is.EqualTo(1));
+        
+        Assert.That(status.Outputs[0].Files.Count, Is.EqualTo(1));
+        Assert.That(status.Outputs[0].Files[0].Type, Is.EqualTo("temp"));
+        Assert.That(status.Outputs[0].Files[0].Filename, Is.Not.Null);
+        Assert.That(status.Outputs[0].Files[0].Filename.Contains("ComfyUI_temp"), Is.True);
+    }
+
+    [Test]
     public async Task Can_use_ComfyClient_ImageToImageUpscale()
     {
         var testDto = new StableDiffusionImageToImageUpscale()
